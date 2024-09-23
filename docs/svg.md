@@ -12,146 +12,32 @@ Here, there is no conflict. But if at the same time:
 
 There will be a conflict between him (README.md) and David (README.txt) because they both modified the file "READMA.txt".
 
-```mermaid
----
-title: Example Illustration
----
-graph LR
-    subgraph "Conflict"
-        B(David: README.txt)
-        C(Guillaume: README.md)
-    end
-
-    A(Francis: REAMDA.txt) --> B
-    A --> C
-```
+Example Illustration:
+![Story illustration](images/svg/story_illustration.png)
 
 ## Storage
 
-SVGs are stored in the form of a [DAG](https://en.wikipedia.org/wiki/Directed_acyclic_graph) where the current value is represented by nodes not pointed to by any other node (represented with a red outline in the examples). Throughout this documentation, we will call these nodes the heads.
+SVGs are stored in the form of a [DAG](https://en.wikipedia.org/wiki/Directed_acyclic_graph) where the current value is represented by nodes not pointed to by any other node (represented with a yellow color in the examples). Throughout this documentation, we will call these nodes the heads.
 
 Here are examples of SVGs and their current values:
-```mermaid
-graph
-    classDef head stroke:#f00
-
-    subgraph "Current Value = A and C"
-        direction BT
-        A4(A):::head
-        C4(C):::head --> B4(B)
-    end
-
-    subgraph "Current Value = D"
-        direction BT
-        C3(C) --> A3(A)
-        B3(B) --> A3(A)
-        D3(D):::head --> C3(C)
-        D3(D) --> B3(B)
-    end
-
-    subgraph "Current Value = B and C"
-        direction BT
-        C2(C):::head --> A2(A)
-        B2(B):::head --> A2(A)
-    end
-
-    subgraph "Current Value = C"
-        direction BT
-        C1(C):::head --> B1(B)
-        B1(B) --> A1(A)
-    end
-```
+![SVG values](images/svg/svg_values.png)
 
 ## Conflicts
 
 An SVG is considered to represent a conflict if it contains more than one head. For example, in the previous example, the second and fourth SVGs are considered to represent a conflict.
 
 Resolving a conflict is very simple, just add a new node pointing to each head of the conflict:
-
-```mermaid
-graph
-    classDef head stroke:#f00
-
-    subgraph "After (no conflict)"
-        direction BT
-        C3(C) --> A3(A)
-        B3(B) --> A3(A)
-        D3(D):::head --> C3(C)
-        D3(D) --> B3(B)
-    end
-
-    subgraph "Before (conflict)"
-        direction BT
-        C2(C):::head --> A2(A)
-        B2(B):::head --> A2(A)
-    end
-```
+![Resolving conflict](images/svg/resolving_conflict.png)
 
 ## Operations
 
 There is only one possible operation in an SVG: `Replace`, this operation consists of replacing one or more nodes with a new one. This operation simply adds a new node in the SVG pointing to the nodes to be replaced.
 
-```mermaid
----
-title: Multiple operations on a SVG step by step (without conflicts)
----
-graph
-    classDef head stroke:#f00
+Multiple operations on a SVG step by step (without conflicts):
+![Operations without conflicts](images/svg/operations_without_conflicts.png)
 
-    subgraph "Replace([B], C)"
-        direction BT
-        C3(C):::head --> B3(B)
-        B3(B) --> A3(A)
-    end
-    
-    subgraph "Replace([A], B)"
-        direction BT
-        B2(B):::head --> A2(A)
-    end
-
-    subgraph "Replace([], A)"
-        direction BT
-        A1(A):::head
-    end
-
-    subgraph "Nothing"
-    end
-```
-
-```mermaid
----
-title: Multiple operations on a SVG step by step (with conflict and resolution)
----
-graph
-    classDef head stroke:#f00
-
-    subgraph "Replace([C, B], D)"
-        direction BT
-        D4(D):::head --> C4(C)
-        D4(D) --> B4(A)
-        C4(C) --> A4(A)
-        B4(B) --> A4(A)
-    end
-
-    subgraph "Replace([A], C)"
-        direction BT
-        C3(C):::head --> A3(A)
-        B3(B):::head --> A3(A)
-    end
-
-    subgraph "Replace([A], B)"
-        direction BT
-        B2(B):::head --> A2(A)
-    end
-    
-    subgraph "Replace([], A)"
-        direction BT
-        A1(A):::head
-    end
-    
-    subgraph "Nothing"
-    end
-```
+Multiple operations on a SVG step by step (with conflict and resolution):
+![Operations with conflicts and resolution](images/svg/operations_with_conflicts_and_resolution.png)
 
 ## Apply Order
 
