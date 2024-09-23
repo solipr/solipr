@@ -1,21 +1,20 @@
-
 # Ordered Value Graph
 
-Les [SVG](svg.md) sont utile pour gere une seule valeur, mais le probleme est qu'ils ne permettent pas de gerer plusieurs valeurs ordonnes.
+[SVGs](svg.md) are useful for handling a single value, but the problem is that they don't allow handling multiple ordered values.
 
-Pour cela nous avons cree une nouvelle structure de donnees que nous avons appele Ordered Value Graph (OVG).
+For this reason, we created a new data structure that we called the Ordered Value Graph (OVG).
 
-Cette structure de donne est un [DAG](https://en.wikipedia.org/wiki/Directed_acyclic_graph) dont chaque noeud correspond a une valeur.
+This data structure is a [DAG](https://en.wikipedia.org/wiki/Directed_acyclic_graph) where each node corresponds to a value.
 
-Chaque noeud contient 4 informations, voici les deux premieres:
-- La valeur contenu par le noeud (ici represente par le texte dans le noeud)
-- Une liaison vers le noeud suivant (aussi appele la liaison enfante, represente par les fleches vert partant du noeud)
+Each node contains four pieces of information, here are the first two:
+- The value contained in the node (represented by the text inside the node in the examples)
+- A link to the next node (also called the child of the node, represented by the green arrows going from the node to the next node in the examples)
 
-Nous verrons les deux autres dans la partie sur la [suppression](#deletion).
+We will discuss the other two pieces of information in the section on [deletion](#deletion).
 
-Dans un OVG, il y a toujours deux noeuds, le premier et le dernier qui sont present afin de savoir dans quel sens parcourir le graphe.
+In an OVG, there are always two nodes: the `First` and the `Last`, which are present to indicate where the OVG starts and where it ends when traversing it.
 
-Voici quelques exemple d'OVG valides:
+Here are some examples of valid OVGs:
 ![Empty OVG](images/ovg/empty_ovg.png)
 ![Simple OVG](images/ovg/simple_ovg.png)
 ![Complex OVG](images/ovg/complex_ovg.png)
@@ -23,58 +22,61 @@ Voici quelques exemple d'OVG valides:
 
 ## Conflicts
 
-Les liaisons vers le noeud parent ou le noeud enfant sont stocke a l'aide d'un [SVG](svg.md), ce qui, nous le verront, permet de gerer les conflits et leur resolution.
+The link to the the child node is stored using an [SVG](svg.md), which, as we will see, allows managing conflicts and their resolution.
 
-Un conflit dans un OVG est represente par plusieurs chemins possibles a emprinter pour aller de `First` vers `Last`.
+A conflict in an OVG is represented by multiple possible paths to traverse from `First` to `Last`.
 
-Par exemple des exemples de OVG aillant des conflits:
+For example, here are some OVGs with conflicts:
 ![Simple conflict 1](images/ovg/simple_conflict_1.png)
 ![Simple conflict 2](images/ovg/simple_conflict_2.png)
 
-Un chemin vide est aussi compte comme un conflit, a partir du moment ou un liaison se dedouble (le [SVG](svg.md) de la liaison contient plus d'une seule valeur courrante) on considere qu'il y a un conflit.
+An "empty" path is also considered a conflict. As soon as a link splits (the link's underlying [SVG](svg.md) contains more than one current value), we consider there to be a conflict.
 
-Par exemple dans l'exemple ci-dessus, on considere qu'il y a un conflit entre l'existance ou non de `A`:
+For example, in the case below, we consider there to be a conflict regarding the existence of `A`:
 ![Conflict not solved](images/ovg/conflict_not_solved.png)
 
-La resolution des conflits est plutot simple, il suffit de moddifier les liaisons (en utilisant l'operation [`Replace`](svg.md#operations) du [SVG](svg.md) sous jacent) de maniere a ce qu'il n'y ait plus de conflit.
+Conflict resolution is fairly simple: you just need to modify the links (using the [`Replace`](svg.md#operations) operation of the underlying [SVG](svg.md)) so that the conflict no longer exists.
 
-Par exemple, l'exemple precedent peut etre resolu en replacant la liaison enfante de `First` par une liaison vers `A`:
+For example, the previous conflict can be resolved by replacing the child link of `First` with a link to `A`:
 ![Conflict solved](images/ovg/conflict_solved.png)
 
-Petite precision, pour une question de securite, la moddification directe du [SVG](svg.md) sous jacent n'est normalement pas autorisee. Nous verrons dans la partie sur [les operations de modification](#operations) comment on peut modifier le graphe.
+As a note, for security reasons, direct modification of the underlying [SVG](svg.md) is usually not allowed. We will discuss in the section on [modification operations](#operations) how the graph can be modified.
 
 
 ## Deletion
 
-Lorsque nous voulons supprimer un noeud, nous ne pouvons pas simplement le supprimer du graphe car un autre utilisateur n'ailant pas la connaisance de cette suppression peut pottentiellent ajouter des liaisons vers ce noeud dans le futur.
+When we want to delete a node, we cannot simply remove it from the graph because another user, unaware of the deletion, might potentially add links to this node before syncing.
 
-C'est donc pour cela qu'au lieu de le supprimer, nous stockons une valeur supplementaire dans chaques noeuds afin de savoir si il a ete supprime ou non, nous appelons cette valeur l'existance du noeud, nous representerons les noeuds supprime en mettant leurs contour en rouge.
+Therefore, instead of deleting the node, we store an additional value in each node to indicate whether it has been deleted or not. We call this value the node's existence (we represent deleted nodes by coloring them in red in the examples).
 
-Par exemple prenont cet OVG:
+For example, let's consider this OVG:
 ![Basic deletion base](images/ovg/basic_deletion_base.png)
 
-Si nous voulons supprimer le noeud `B`, nous devons le marque comme etant supprime, puis nous devons changer la liaison enfante de `A` pour qu'elle pointe vers `Last`:
+If we want to delete node `B`, we must mark it as deleted and then change the child link of `A` so that it points to `Last`:
 ![Basic deletion](images/ovg/basic_deletion.png)
 
-Malheureusement, cette methode ne fonctionne pas totalement, regardez ce graphe:
+Unfortunately, this method does not work perfectly. Look at this OVG:
 ![Bad suppression and insertion conflict base](images/ovg/bad_deletion_and_insertion_conflict_base.png)
 
-Imaginons que nous dessiodons de supprimer `A` et `C` mais qu'au meme moment, un autre utilisateur decide d'ajouter un noeud `B` entre `A` et `C`, apres avoir assembler les deux changements, nous aurons ce OVG:
+Imagine we decide to delete both `A` and `C`, but at the same time, another user decides to add a node `B` between `A` and `C`. After merging the two changes, we get this OVG:
 ![Bad suppression and insertion conflict](images/ovg/bad_deletion_and_insertion_conflict.png)
 
-Nous finnissons avec un graphe sans aucuns conflit, or ajouter un noeud au milieu de plusieurs elements supprime devrait etre un conflit.
+We end up with a graph with no conflicts, but adding a node in the middle of several deleted elements should result in a conflict.
 
-Afin de resoudre ce probleme, nous devons stocker la liaison vers le noeud precedent (aussi apelle la liaison parente, represente par les fleches rouge) dans chaque noeud en plus de la liaison vers le noeud suivant.
+To resolve this issue, we need to store the link to the previous node (also called the parent of the node, represented by the red arrows in the examples) in each node in addition to the link to the next node.
 
-Si nous faisons cela dans notre exemple precedent, nous aurons:
+If we do this in our previous example, we get:
 ![Suppression and insertion conflict](images/ovg/deletion_and_insertion_conflict.png)
 
-Maintenant nous pouvons savoir si un conflit est present ou non, pour cela, nous devons partir de tous les noeuds qui ne sont pas supprime et parcourir le graph afin de reconstruire toutes les liaisons manquantes:
+Now, we can tell if a conflict is present or not. To do this, we must start from all the nodes that are not deleted and traverse the graph to reconstruct all the missing links:
 ![Suppression and insertion conflict reconstruction](images/ovg/deletion_and_insertion_conflict_reconstruction.png)
 
-Maintenant nous pouvons parcourir le graphe en partant de `First` et nous voyons bien le conflit.
+Now, if we traverse the graph starting from `First`, we clearly see the conflict.
 
 ## Operations
 
 ### Insert
+TODO
+
 ### Delete
+TODO
