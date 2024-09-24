@@ -1,0 +1,31 @@
+name: Rust
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install minimal nightly with rustfmt
+      run: rustup toolchain install nightly --profile minimal --component rustfmt,clippy
+
+    - name: Check fmt
+      run: cargo +nightly fmt --check
+  
+    - name: Clippy checks
+      run: cargo +nightly clippy -- -D warnings
+
+    - name: Build
+      run: cargo build
+      
+    - name: Run tests
+      run: cargo test
