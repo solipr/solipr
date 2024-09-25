@@ -75,8 +75,36 @@ Now, if we traverse the graph starting from `First`, we clearly see the conflict
 
 ## Operations
 
+To modify an OVG, we can simply change the links using the `Replace` [operation](svg.md#operations) of the underlying SVGs.
+
+However, the problem with this method is that it allows the user to create cycles in the OVG (which would make it invalid and therefore unusable).
+
+To avoid this problem, we will limit the possible operations to two "meta" operations, which can then be converted into simple `Replace` [operations](svg.md#operations) for the underlying SVGs.
+
 ### Insert
-TODO
+The `Insert` operation consists of inserting a list of nodes between two nodes, the `before` node and the `after` node. As the names suggest, the `before` node must be positioned before the `after` node in the OVG.
+
+This operation can then be broken down into simpler steps:
+- `Replace` the child of `before` with the first node to insert.
+- Add the links between each node to be inserted by using the `Replace` operation on their parent and child.
+- `Replace` the parent of `after` with the last node to be inserted.
+
+Note: To generate the `Replace` operations from our `Insert` operation, it must contain the heads to replace in the links of the `before` and `after` nodes.
 
 ### Delete
-TODO
+The `Delete` operation consists of deleting a list of nodes between two nodes, the `before` node and the `after` node. As the names suggest, the `before` node must be positioned before the `after` node in the OVG.
+
+For the operation to be valid, all nodes to be deleted must indeed be located between `before` and `after`.
+
+This operation can then be broken down into simpler steps:
+- `Replace` the child of `before` with the `after` node.
+- Mark each deleted node as deleted in the OVG.
+- `Replace` the parent of `after` with the `before` node.
+
+Note: To generate the `Replace` operations from our `Delete` operation, it must contain the heads to replace in the links of the `before` and `after` nodes.
+
+### Workaround
+
+By using only these "meta" operations, it is not possible to create loops in the OVG because it is only possible to insert links between two ordered nodes.
+
+However, it is no longer possible to resolve conflicts as we did previously. Fortunately, resolving a conflict is quite simple with these operations: you just need to delete the entire conflict using the `Delete` operation and then use the `Insert` operation to place the desired value at the conflict's location.
