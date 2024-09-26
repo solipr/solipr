@@ -26,7 +26,7 @@ In order to fully understand how Solipr works, you need to read step by step the
 | **Documentation** | **Short Description** |
 |-------------------|-----------------------|
 | [SVG](docs/svg.md) | A **data structure** that manages concurrent modifications to a single value using a [directed acyclic graph (DAG)](https://en.wikipedia.org/wiki/Directed_acyclic_graph) to **handle conflicts**. |
-| [OVG](docs/ovg.md) | A [directed acyclic graph (DAG)](https://en.wikipedia.org/wiki/Directed_acyclic_graph) that manages **multiple ordered values** and resolves conflicts through designated "First" and "Last" nodes. |
+| [OVG](docs/ovg.md) | A [directed acyclic graph (DAG)](https://en.wikipedia.org/wiki/Directed_acyclic_graph) created using multiples [SVG](docs/svg.md) that manages concurrent modifications to a list of ordered values and **handle conflicts**. |
 
 ## Our team
 
