@@ -10,14 +10,14 @@
   <h3 align="center">Solipr</h3>
   <p align="center">
     <br />
-    A purely Rust Control Version System.
+    A purely Rust-based Version Control System.
   </p>
 </div>
 
 ---
 
 ## Introduction
-Solipr is a purely Rust Control Version System...
+Solipr is a purely Rust-based Version Control System.
 
 ## How does it work?
 
