@@ -1,0 +1,15 @@
+{
+	"name": "Rust",
+	"dockerFile": "Dockerfile",
+	"customizations": {
+		"vscode": {
+			"settings": {
+				"editor.formatOnSave": true,
+				"rust-analyzer.check.command": "clippy",
+				"rust-analyzer.rustfmt.extraArgs": [
+					"+nightly"
+				]
+			}
+		}
+	}
+}
