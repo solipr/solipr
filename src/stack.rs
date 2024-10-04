@@ -501,7 +501,7 @@ pub struct VecIter<'vec, T: Copy, const MAX: usize> {
     index: u8,
 }
 
-impl<'vec, T: Copy, const MAX: usize> Iterator for VecIter<'vec, T, MAX> {
+impl<T: Copy, const MAX: usize> Iterator for VecIter<'_, T, MAX> {
     type Item = T;
 
     #[inline]
