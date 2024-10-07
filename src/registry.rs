@@ -1,5 +1,5 @@
-//! A registry that can be used to get information about packages and their
-//! versions
+//! A registry that can be used so store and retrieve bytes arrays of any
+//! length.
 
 use std::io::{self, Read};
 
@@ -26,4 +26,14 @@ pub trait Registry {
     ///
     /// Returns an [`io::Error`] if the content can't be opened.
     fn read(&self, hash: [u8; 32]) -> io::Result<Option<impl Read>>;
+
+    /// Write a new content to the registry.
+    ///
+    /// If the content is already in the registry, this function does nothing.
+    ///
+    /// # Errors
+    ///
+    /// Returns an [`io::Error`] if there is an error while writing to the
+    /// content to the registry.
+    fn write(&self, content: impl Read) -> io::Result<()>;
 }
