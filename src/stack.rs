@@ -45,7 +45,7 @@ use core::slice::{from_raw_parts, from_raw_parts_mut};
 /// numbers.clear();
 /// assert_eq!(format!("{:?}", numbers), "[]");
 /// ```
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 pub struct Vec<T: Copy, const MAX: usize> {
     /// The number of elements in the [Vec].
     len: u8,
