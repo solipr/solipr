@@ -9,6 +9,10 @@ keywords = ["vcs"]
 categories = ["development-tools"]
 edition = "2021"
 
+[dependencies]
+async-trait = "0.1.83"
+futures = "0.3.31"
+
 [lints.rust]
 missing_docs = "warn"
 non_ascii_idents = "warn"
