@@ -5,10 +5,7 @@
 		"vscode": {
 			"settings": {
 				"editor.formatOnSave": true,
-				"rust-analyzer.check.command": "clippy",
-				"rust-analyzer.rustfmt.extraArgs": [
-					"+nightly"
-				]
+				"rust-analyzer.check.command": "clippy"
 			}
 		}
 	}
