@@ -6,15 +6,15 @@ use crate::registry::ContentHash;
 use crate::stack::StackVec;
 
 /// The hash of a change stored in the registry.
-#[derive(Clone, Copy, Eq, Hash, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub struct ChangeHash(ContentHash);
 
 /// The identifier of a file.
-#[derive(Clone, Copy, Eq, Hash, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub struct FileId(Uuid);
 
 /// The identifier of a line in a file.
-#[derive(Clone, Copy, Eq, Hash, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub struct LineId(Uuid);
 
 impl LineId {
@@ -36,6 +36,7 @@ impl LineId {
 /// A change.
 ///
 /// TODO: Add the changes to modify files.
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Change {
     /// Add a line to a file.
     DefineLine {
