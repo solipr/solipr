@@ -34,6 +34,8 @@ impl LineId {
 }
 
 /// A change.
+///
+/// TODO: Add the changes to modify files.
 pub enum Change {
     /// Add a line to a file.
     DefineLine {
