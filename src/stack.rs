@@ -25,7 +25,7 @@ use core::slice::{from_raw_parts, from_raw_parts_mut};
 /// # Example
 ///
 /// ```rust
-/// use solipr::stack::Vec;
+/// use solipr::stack::StackVec;
 ///
 /// let mut numbers = StackVec::from([1, 2, 3]);
 ///
@@ -64,7 +64,7 @@ impl<T: Copy, const MAX: usize> StackVec<T, MAX> {
     /// # Example
     ///
     /// ```rust
-    /// use solipr::stack::Vec;
+    /// use solipr::stack::StackVec;
     ///
     /// let numbers = StackVec::<i32, 3>::new();
     ///
@@ -88,7 +88,7 @@ impl<T: Copy, const MAX: usize> StackVec<T, MAX> {
     /// # Example
     ///
     /// ```rust
-    /// use solipr::stack::Vec;
+    /// use solipr::stack::StackVec;
     ///
     /// let mut numbers = StackVec::from([1, 2, 3]);
     ///
@@ -108,7 +108,7 @@ impl<T: Copy, const MAX: usize> StackVec<T, MAX> {
     /// # Example
     ///
     /// ```rust
-    /// use solipr::stack::Vec;
+    /// use solipr::stack::StackVec;
     ///
     /// let mut numbers = StackVec::from([1, 2, 3]);
     ///
@@ -130,7 +130,7 @@ impl<T: Copy, const MAX: usize> StackVec<T, MAX> {
     /// # Example
     ///
     /// ```rust
-    /// use solipr::stack::Vec;
+    /// use solipr::stack::StackVec;
     ///
     /// let mut numbers = StackVec::from([1, 2, 3]);
     ///
@@ -159,7 +159,7 @@ impl<T: Copy, const MAX: usize> StackVec<T, MAX> {
     /// # Example
     ///
     /// ```rust
-    /// use solipr::stack::Vec;
+    /// use solipr::stack::StackVec;
     ///
     /// let mut numbers = StackVec::<i32, 3>::new();
     ///
@@ -201,7 +201,7 @@ impl<T: Copy, const MAX: usize> StackVec<T, MAX> {
     /// # Example
     ///
     /// ```rust
-    /// use solipr::stack::Vec;
+    /// use solipr::stack::StackVec;
     ///
     /// let mut numbers = StackVec::from([1, 2, 3]);
     ///
@@ -237,7 +237,7 @@ impl<T: Copy, const MAX: usize> StackVec<T, MAX> {
     /// # Example
     ///
     /// ```rust
-    /// use solipr::stack::Vec;
+    /// use solipr::stack::StackVec;
     ///
     /// let mut numbers = StackVec::from([1, 2, 3, 4, 5]);
     ///
@@ -286,7 +286,7 @@ impl<T: Copy, const MAX: usize> StackVec<T, MAX> {
     /// # Example
     ///
     /// ```rust
-    /// use solipr::stack::Vec;
+    /// use solipr::stack::StackVec;
     ///
     /// let mut numbers = StackVec::from([1, 2, 3, 4, 5]);
     ///
@@ -308,7 +308,7 @@ impl<T: Copy, const MAX: usize> StackVec<T, MAX> {
     /// # Example
     ///
     /// ```rust
-    /// use solipr::stack::Vec;
+    /// use solipr::stack::StackVec;
     ///
     /// let numbers = StackVec::from([1, 2, 3, 4, 5]);
     ///
@@ -326,7 +326,7 @@ impl<T: Copy, const MAX: usize> StackVec<T, MAX> {
     /// # Example
     ///
     /// ```rust
-    /// use solipr::stack::Vec;
+    /// use solipr::stack::StackVec;
     ///
     /// let mut numbers = StackVec::from([1, 2, 3, 4, 5]);
     ///
@@ -348,7 +348,7 @@ impl<T: Copy, const MAX: usize> StackVec<T, MAX> {
     /// # Example
     ///
     /// ```rust
-    /// use solipr::stack::Vec;
+    /// use solipr::stack::StackVec;
     ///
     /// let numbers = StackVec::from([1, 2, 3, 4, 5]);
     ///
