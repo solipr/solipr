@@ -1,4 +1,4 @@
-//! Defines the [Vec] type that is like a standard [Vec](std::vec::Vec) but
+//! Defines the [`StackVec`] type that is like a standard [Vec] but
 //! that is stored on the stack.
 //!
 //! It works by storing the elements in a fixed size array on the stack along
@@ -17,7 +17,7 @@ use core::mem::MaybeUninit;
 use core::ops::{Deref, DerefMut};
 use core::slice::{from_raw_parts, from_raw_parts_mut};
 
-/// A Vec that is stored on the stack. The maximum number of elements is
+/// A [Vec] that is stored on the stack. The maximum number of elements is
 /// limited to `MAX`.
 ///
 /// The type `T` must be copyable and `MAX` must be less or equal to `255`.
@@ -27,7 +27,7 @@ use core::slice::{from_raw_parts, from_raw_parts_mut};
 /// ```rust
 /// use solipr::stack::Vec;
 ///
-/// let mut numbers = Vec::from([1, 2, 3]);
+/// let mut numbers = StackVec::from([1, 2, 3]);
 ///
 /// assert_eq!(format!("{:?}", numbers), "[1, 2, 3]");
 ///
@@ -46,16 +46,16 @@ use core::slice::{from_raw_parts, from_raw_parts_mut};
 /// assert_eq!(format!("{:?}", numbers), "[]");
 /// ```
 #[derive(Clone, Copy)]
-pub struct Vec<T: Copy, const MAX: usize> {
-    /// The number of elements in the [Vec].
+pub struct StackVec<T: Copy, const MAX: usize> {
+    /// The number of elements in the [`StackVec`].
     len: u8,
 
-    /// The elements of the [Vec].
+    /// The elements of the [`StackVec`].
     data: [MaybeUninit<T>; MAX],
 }
 
-impl<T: Copy, const MAX: usize> Vec<T, MAX> {
-    /// Create a new empty [Vec].
+impl<T: Copy, const MAX: usize> StackVec<T, MAX> {
+    /// Create a new empty [`StackVec`].
     ///
     /// # Panics
     ///
@@ -66,7 +66,7 @@ impl<T: Copy, const MAX: usize> Vec<T, MAX> {
     /// ```rust
     /// use solipr::stack::Vec;
     ///
-    /// let numbers = Vec::<i32, 3>::new();
+    /// let numbers = StackVec::<i32, 3>::new();
     ///
     /// assert_eq!(format!("{:?}", numbers), "[]");
     /// ```
@@ -83,14 +83,14 @@ impl<T: Copy, const MAX: usize> Vec<T, MAX> {
         }
     }
 
-    /// Return `true` if the [Vec] is empty, `false` otherwise.
+    /// Return `true` if the [`StackVec`] is empty, `false` otherwise.
     ///
     /// # Example
     ///
     /// ```rust
     /// use solipr::stack::Vec;
     ///
-    /// let mut numbers = Vec::from([1, 2, 3]);
+    /// let mut numbers = StackVec::from([1, 2, 3]);
     ///
     /// assert_eq!(numbers.is_empty(), false);
     ///
@@ -103,14 +103,14 @@ impl<T: Copy, const MAX: usize> Vec<T, MAX> {
         self.len == 0
     }
 
-    /// Return the number of elements in the [Vec].
+    /// Return the number of elements in the [`StackVec`].
     ///
     /// # Example
     ///
     /// ```rust
     /// use solipr::stack::Vec;
     ///
-    /// let mut numbers = Vec::from([1, 2, 3]);
+    /// let mut numbers = StackVec::from([1, 2, 3]);
     ///
     /// assert_eq!(numbers.len(), 3);
     ///
@@ -123,7 +123,7 @@ impl<T: Copy, const MAX: usize> Vec<T, MAX> {
         self.len as usize
     }
 
-    /// Get an element from the [Vec].
+    /// Get an element from the [`StackVec`].
     ///
     /// Returns [None] if the index is out of bounds.
     ///
@@ -132,7 +132,7 @@ impl<T: Copy, const MAX: usize> Vec<T, MAX> {
     /// ```rust
     /// use solipr::stack::Vec;
     ///
-    /// let mut numbers = Vec::from([1, 2, 3]);
+    /// let mut numbers = StackVec::from([1, 2, 3]);
     ///
     /// assert_eq!(numbers.get(0), Some(1));
     /// assert_eq!(numbers.get(1), Some(2));
@@ -151,9 +151,9 @@ impl<T: Copy, const MAX: usize> Vec<T, MAX> {
         Some(unsafe { self.data[index].assume_init() })
     }
 
-    /// Push a new element to the [Vec].
+    /// Push a new element to the [`StackVec`].
     ///
-    /// Returns [Some] with the value if the [Vec] is full and [None] if
+    /// Returns [Some] with the value if the [`StackVec`] is full and [None] if
     /// the value was pushed.
     ///
     /// # Example
@@ -161,7 +161,7 @@ impl<T: Copy, const MAX: usize> Vec<T, MAX> {
     /// ```rust
     /// use solipr::stack::Vec;
     ///
-    /// let mut numbers = Vec::<i32, 3>::new();
+    /// let mut numbers = StackVec::<i32, 3>::new();
     ///
     /// assert_eq!(format!("{:?}", numbers), "[]");
     ///
@@ -194,16 +194,16 @@ impl<T: Copy, const MAX: usize> Vec<T, MAX> {
         }
     }
 
-    /// Pop an element from the [Vec].
+    /// Pop an element from the [`StackVec`].
     ///
-    /// Returns [None] if the [Vec] is empty.
+    /// Returns [None] if the [`StackVec`] is empty.
     ///
     /// # Example
     ///
     /// ```rust
     /// use solipr::stack::Vec;
     ///
-    /// let mut numbers = Vec::from([1, 2, 3]);
+    /// let mut numbers = StackVec::from([1, 2, 3]);
     ///
     /// assert_eq!(numbers.pop(), Some(3));
     /// assert_eq!(format!("{:?}", numbers), "[1, 2]");
@@ -230,7 +230,7 @@ impl<T: Copy, const MAX: usize> Vec<T, MAX> {
         }
     }
 
-    /// Remove an element from the [Vec].
+    /// Remove an element from the [`StackVec`].
     ///
     /// Does nothing if the index is out of bounds.
     ///
@@ -239,7 +239,7 @@ impl<T: Copy, const MAX: usize> Vec<T, MAX> {
     /// ```rust
     /// use solipr::stack::Vec;
     ///
-    /// let mut numbers = Vec::from([1, 2, 3, 4, 5]);
+    /// let mut numbers = StackVec::from([1, 2, 3, 4, 5]);
     ///
     /// assert_eq!(numbers.remove(0), Some(1));
     /// assert_eq!(format!("{:?}", numbers), "[2, 3, 4, 5]");
@@ -281,14 +281,14 @@ impl<T: Copy, const MAX: usize> Vec<T, MAX> {
         Some(result)
     }
 
-    /// Clear the [Vec].
+    /// Clear the [`StackVec`].
     ///
     /// # Example
     ///
     /// ```rust
     /// use solipr::stack::Vec;
     ///
-    /// let mut numbers = Vec::from([1, 2, 3, 4, 5]);
+    /// let mut numbers = StackVec::from([1, 2, 3, 4, 5]);
     ///
     /// assert_eq!(format!("{:?}", numbers), "[1, 2, 3, 4, 5]");
     /// assert_eq!(numbers.len(), 5);
@@ -303,14 +303,14 @@ impl<T: Copy, const MAX: usize> Vec<T, MAX> {
         self.len = 0;
     }
 
-    /// Returns a slice representing the [Vec].
+    /// Returns a slice representing the [`StackVec`].
     ///
     /// # Example
     ///
     /// ```rust
     /// use solipr::stack::Vec;
     ///
-    /// let numbers = Vec::from([1, 2, 3, 4, 5]);
+    /// let numbers = StackVec::from([1, 2, 3, 4, 5]);
     ///
     /// assert_eq!(format!("{:?}", numbers.as_slice()), "[1, 2, 3, 4, 5]");
     /// ```
@@ -321,14 +321,14 @@ impl<T: Copy, const MAX: usize> Vec<T, MAX> {
         unsafe { from_raw_parts(self.data.as_ptr().cast::<T>(), self.len as usize) }
     }
 
-    /// Returns a mutable slice representing the [Vec].
+    /// Returns a mutable slice representing the [`StackVec`].
     ///
     /// # Example
     ///
     /// ```rust
     /// use solipr::stack::Vec;
     ///
-    /// let mut numbers = Vec::from([1, 2, 3, 4, 5]);
+    /// let mut numbers = StackVec::from([1, 2, 3, 4, 5]);
     ///
     /// let slice = numbers.as_mut_slice();
     ///
@@ -343,14 +343,14 @@ impl<T: Copy, const MAX: usize> Vec<T, MAX> {
         unsafe { from_raw_parts_mut(self.data.as_mut_ptr().cast::<T>(), self.len as usize) }
     }
 
-    /// Returns an iterator over the [Vec].
+    /// Returns an iterator over the [`StackVec`].
     ///
     /// # Example
     ///
     /// ```rust
     /// use solipr::stack::Vec;
     ///
-    /// let numbers = Vec::from([1, 2, 3, 4, 5]);
+    /// let numbers = StackVec::from([1, 2, 3, 4, 5]);
     ///
     /// let mut iter = numbers.iter();
     ///
@@ -362,22 +362,22 @@ impl<T: Copy, const MAX: usize> Vec<T, MAX> {
     /// assert_eq!(iter.next(), None);
     /// ```
     #[inline]
-    pub const fn iter(&self) -> VecIter<T, MAX> {
-        VecIter {
+    pub const fn iter(&self) -> StackVecIter<T, MAX> {
+        StackVecIter {
             vec: self,
             index: 0,
         }
     }
 }
 
-impl<T: Default + Copy, const MAX: usize> Default for Vec<T, MAX> {
+impl<T: Default + Copy, const MAX: usize> Default for StackVec<T, MAX> {
     #[inline]
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<T: Copy, const MAX: usize> From<[T; MAX]> for Vec<T, MAX> {
+impl<T: Copy, const MAX: usize> From<[T; MAX]> for StackVec<T, MAX> {
     #[inline]
     fn from(value: [T; MAX]) -> Self {
         assert!(value.len() <= MAX, "MAX cannot be bigger than 255");
@@ -392,7 +392,7 @@ impl<T: Copy, const MAX: usize> From<[T; MAX]> for Vec<T, MAX> {
     }
 }
 
-impl<T: Copy + Debug, const MAX: usize> Debug for Vec<T, MAX> {
+impl<T: Copy + Debug, const MAX: usize> Debug for StackVec<T, MAX> {
     #[inline]
     #[expect(clippy::min_ident_chars, reason = "The trait is made that way")]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -412,15 +412,17 @@ impl<T: Copy + Debug, const MAX: usize> Debug for Vec<T, MAX> {
     }
 }
 
-impl<T: PartialEq + Copy, const A: usize, const B: usize> PartialEq<Vec<T, B>> for Vec<T, A> {
+impl<T: PartialEq + Copy, const A: usize, const B: usize> PartialEq<StackVec<T, B>>
+    for StackVec<T, A>
+{
     #[inline]
-    fn eq(&self, other: &Vec<T, B>) -> bool {
+    fn eq(&self, other: &StackVec<T, B>) -> bool {
         self.len == other.len && {
             for i in 0..self.len as usize {
                 #[expect(
                     clippy::indexing_slicing,
-                    reason = "Both Vec have the same length and all values from 0 to self.len are \
-                              in bounds"
+                    reason = "Both StackVec have the same length and all values from 0 to \
+                              self.len are in bounds"
                 )]
                 // SAFETY:
                 // All values from 0 to self.len are initialized.
@@ -433,9 +435,9 @@ impl<T: PartialEq + Copy, const A: usize, const B: usize> PartialEq<Vec<T, B>> f
     }
 }
 
-impl<T: Copy + Eq, const MAX: usize> Eq for Vec<T, MAX> {}
+impl<T: Copy + Eq, const MAX: usize> Eq for StackVec<T, MAX> {}
 
-impl<T: Copy + Hash, const MAX: usize> Hash for Vec<T, MAX> {
+impl<T: Copy + Hash, const MAX: usize> Hash for StackVec<T, MAX> {
     #[inline]
     fn hash<H: Hasher>(&self, state: &mut H) {
         for i in 0..self.len as usize {
@@ -450,7 +452,7 @@ impl<T: Copy + Hash, const MAX: usize> Hash for Vec<T, MAX> {
     }
 }
 
-impl<T: Copy, const MAX: usize> Deref for Vec<T, MAX> {
+impl<T: Copy, const MAX: usize> Deref for StackVec<T, MAX> {
     type Target = [T];
 
     #[inline]
@@ -459,17 +461,17 @@ impl<T: Copy, const MAX: usize> Deref for Vec<T, MAX> {
     }
 }
 
-impl<T: Copy, const MAX: usize> DerefMut for Vec<T, MAX> {
+impl<T: Copy, const MAX: usize> DerefMut for StackVec<T, MAX> {
     #[inline]
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.as_mut_slice()
     }
 }
 
-impl<'vec, T: Copy, const MAX: usize> IntoIterator for &'vec Vec<T, MAX> {
+impl<'vec, T: Copy, const MAX: usize> IntoIterator for &'vec StackVec<T, MAX> {
     type Item = T;
 
-    type IntoIter = VecIter<'vec, T, MAX>;
+    type IntoIter = StackVecIter<'vec, T, MAX>;
 
     #[inline]
     fn into_iter(self) -> Self::IntoIter {
@@ -477,14 +479,14 @@ impl<'vec, T: Copy, const MAX: usize> IntoIterator for &'vec Vec<T, MAX> {
     }
 }
 
-impl<T: Copy, const MAX: usize> IntoIterator for Vec<T, MAX> {
+impl<T: Copy, const MAX: usize> IntoIterator for StackVec<T, MAX> {
     type Item = T;
 
-    type IntoIter = VecIntoIter<T, MAX>;
+    type IntoIter = StackVecIntoIter<T, MAX>;
 
     #[inline]
     fn into_iter(self) -> Self::IntoIter {
-        VecIntoIter {
+        StackVecIntoIter {
             data: self.data,
             len: self.len,
             index: 0,
@@ -492,16 +494,16 @@ impl<T: Copy, const MAX: usize> IntoIterator for Vec<T, MAX> {
     }
 }
 
-/// An iterator over the elements of a [Vec].
-pub struct VecIter<'vec, T: Copy, const MAX: usize> {
-    /// The [Vec] being iterated over.
-    vec: &'vec Vec<T, MAX>,
+/// An iterator over the elements of a [`StackVec`].
+pub struct StackVecIter<'vec, T: Copy, const MAX: usize> {
+    /// The [`StackVec`] being iterated over.
+    vec: &'vec StackVec<T, MAX>,
 
     /// The current index of the iterator.
     index: u8,
 }
 
-impl<T: Copy, const MAX: usize> Iterator for VecIter<'_, T, MAX> {
+impl<T: Copy, const MAX: usize> Iterator for StackVecIter<'_, T, MAX> {
     type Item = T;
 
     #[inline]
@@ -520,19 +522,19 @@ impl<T: Copy, const MAX: usize> Iterator for VecIter<'_, T, MAX> {
     }
 }
 
-/// An owned iterator over the elements of a [Vec].
-pub struct VecIntoIter<T: Copy, const MAX: usize> {
-    /// The data of the [Vec].
+/// An owned iterator over the elements of a [`StackVec`].
+pub struct StackVecIntoIter<T: Copy, const MAX: usize> {
+    /// The data of the [`StackVec`].
     data: [MaybeUninit<T>; MAX],
 
-    /// The length of the [Vec].
+    /// The length of the [`StackVec`].
     len: u8,
 
     /// The current index of the iterator.
     index: u8,
 }
 
-impl<T: Copy, const MAX: usize> Iterator for VecIntoIter<T, MAX> {
+impl<T: Copy, const MAX: usize> Iterator for StackVecIntoIter<T, MAX> {
     type Item = T;
 
     #[inline]
@@ -557,9 +559,9 @@ mod tests {
 
     #[test]
     fn partial_eq() {
-        let mut vec1 = Vec::<i32, 3>::from([1_i32, 2_i32, 3_i32]);
-        let mut vec2 = Vec::<i32, 3>::from([1_i32, 2_i32, 3_i32]);
-        let mut vec3 = Vec::<i32, 5>::from([1_i32, 2_i32, 3_i32, 4_i32, 5_i32]);
+        let mut vec1 = StackVec::<i32, 3>::from([1_i32, 2_i32, 3_i32]);
+        let mut vec2 = StackVec::<i32, 3>::from([1_i32, 2_i32, 3_i32]);
+        let mut vec3 = StackVec::<i32, 5>::from([1_i32, 2_i32, 3_i32, 4_i32, 5_i32]);
         assert_eq!(vec1, vec2);
         assert_ne!(vec1, vec3);
 
@@ -576,7 +578,7 @@ mod tests {
 
     #[test]
     fn into_iter() {
-        let numbers = Vec::<i32, 3>::from([1_i32, 2_i32, 3_i32]);
+        let numbers = StackVec::<i32, 3>::from([1_i32, 2_i32, 3_i32]);
 
         let mut iter = numbers.into_iter();
         assert_eq!(iter.next(), Some(1_i32));
