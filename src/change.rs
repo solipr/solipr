@@ -3,7 +3,7 @@
 use uuid::Uuid;
 
 use crate::registry::ContentHash;
-use crate::stack;
+use crate::stack::StackVec;
 
 /// The hash of a change stored in the registry.
 #[derive(Clone, Copy, Eq, Hash, PartialEq)]
@@ -80,7 +80,7 @@ pub enum Change {
         /// If there is more than 3 changes to be replaced, you should make one
         /// change to replace the first 3 changes and then make another change
         /// to replace the first created change with the rest.
-        replace: stack::StackVec<ChangeHash, 3>,
+        replace: StackVec<ChangeHash, 3>,
 
         /// The new parent of the line.
         parent: LineId,
@@ -102,7 +102,7 @@ pub enum Change {
         /// If there is more than 3 changes to be replaced, you should make one
         /// change to replace the first 3 changes and then make another change
         /// to replace the first created change with the rest.
-        replace: stack::StackVec<ChangeHash, 3>,
+        replace: StackVec<ChangeHash, 3>,
 
         /// The new child of the line.
         child: LineId,
