@@ -32,7 +32,7 @@ macro_rules! impl_serializable_for_integers {
                 &self,
                 mut writer: impl AsyncWrite + Unpin + Send
             ) -> io::Result<()> {
-                writer.write_all(self.to_le_bytes().as_ref()).await
+                writer.write_all(self.to_be_bytes().as_ref()).await
             }
 
             #[inline]
@@ -79,7 +79,7 @@ macro_rules! impl_deserializable_for_integers {
             async fn deserialize(mut reader: impl AsyncRead + Unpin + Send) -> io::Result<Self> {
                 let mut buf = [0_u8; <$t>::BITS as usize / 8];
                 reader.read_exact(&mut buf).await?;
-                Ok(<$t>::from_le_bytes(buf))
+                Ok(<$t>::from_be_bytes(buf))
             }
         }
     )*};
