@@ -6,32 +6,9 @@ use core::error::Error;
 use async_trait::async_trait;
 use futures::{AsyncRead, Stream};
 
-/// The size of a content tag in bytes.
-const TAG_SIZE: usize = 64;
-
 /// The hash of a content stored in the registry.
 #[derive(Clone, Copy, Eq, Hash, PartialEq)]
 pub struct ContentHash([u8; 32]);
-
-/// The tag of a content stored in the registry.
-#[derive(Clone, Copy, Eq, Hash, PartialEq)]
-pub struct ContentTag([u8; TAG_SIZE]);
-
-impl<T: ToString> From<T> for ContentTag {
-    #[must_use]
-    #[inline]
-    fn from(value: T) -> Self {
-        let mut bytes = [0_u8; TAG_SIZE];
-        #[expect(
-            clippy::indexing_slicing,
-            reason = "we only take the first TAG_SIZE bytes"
-        )]
-        for (i, byte) in value.to_string().bytes().take(TAG_SIZE).enumerate() {
-            bytes[i] = byte;
-        }
-        Self(bytes)
-    }
-}
 
 /// A registry that can be used to store simple byte arrays of any length
 /// locally.
@@ -80,13 +57,13 @@ pub trait RegistryTransaction<'registry> {
         Self: 'transaction;
 
     /// Returns a [Stream] of all known tags in the registry.
-    async fn known_tags(&self) -> Result<impl Stream<Item = ContentTag>, Self::Error>;
+    async fn known_tags(&self) -> Result<impl Stream<Item = String>, Self::Error>;
 
     /// Returns a [Stream] of all known content in the registry that match the
     /// given tags.
     async fn list(
         &self,
-        tags: impl IntoIterator<Item = ContentTag>,
+        tags: impl IntoIterator<Item = String>,
     ) -> Result<impl Stream<Item = Self::ContentHandle<'_>>, Self::Error>;
 
     /// Creates a snapshot of the current registry state, which can be used to
@@ -141,14 +118,14 @@ pub trait ContentHandle<'transaction>: AsyncRead {
     fn hash(&self) -> ContentHash;
 
     /// Returns the tags of the content.
-    async fn tags(&self) -> Result<impl Stream<Item = ContentTag>, Self::Error>;
+    async fn tags(&self) -> Result<impl Stream<Item = String>, Self::Error>;
 
     /// Returns whether the content has the given tag.
-    async fn has(&self, tag: ContentTag) -> Result<bool, Self::Error>;
+    async fn has(&self, tag: String) -> Result<bool, Self::Error>;
 
     /// Adds the given tags to the content.
-    async fn add_tag(&self, tag: ContentTag) -> Result<(), Self::Error>;
+    async fn add_tag(&self, tag: String) -> Result<(), Self::Error>;
 
     /// Removes the given tags from the content.
-    async fn remove_tag(&self, tag: ContentTag) -> Result<(), Self::Error>;
+    async fn remove_tag(&self, tag: String) -> Result<(), Self::Error>;
 }
