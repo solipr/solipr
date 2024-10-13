@@ -6,8 +6,6 @@ use core::error::Error;
 use async_trait::async_trait;
 use futures::{AsyncRead, Stream};
 
-use crate::serializer::{Deserializable, Serializable};
-
 /// The hash of a content stored in the registry.
 #[derive(Clone, Copy, Eq, Hash, PartialEq)]
 pub struct ContentHash([u8; 32]);
@@ -15,12 +13,12 @@ pub struct ContentHash([u8; 32]);
 /// A registry that can be used to store simple byte arrays of any length
 /// locally.
 #[async_trait]
-pub trait Registry<Tag: Deserializable + Serializable> {
+pub trait Registry {
     /// The error that can occur when opening a transaction to the registry.
     type Error: Error;
 
     /// The type of a transaction that can be opened on the registry.
-    type Transaction<'registry>: RegistryTransaction<'registry, Tag>
+    type Transaction<'registry>: RegistryTransaction<'registry>
     where
         Self: 'registry;
 
@@ -44,7 +42,7 @@ pub trait Registry<Tag: Deserializable + Serializable> {
 /// A transaction on a [Registry] that can be used to store and retrieve byte
 /// arrays of any length.
 #[async_trait]
-pub trait RegistryTransaction<'registry, Tag: Deserializable + Serializable> {
+pub trait RegistryTransaction<'registry> {
     /// The error that can occur when doing operations in the transaction.
     type Error: Error;
 
@@ -54,18 +52,18 @@ pub trait RegistryTransaction<'registry, Tag: Deserializable + Serializable> {
         Self: 'transaction;
 
     /// The type of a handle to a content in the registry.
-    type ContentHandle<'transaction>: ContentHandle<'transaction, Tag>
+    type ContentHandle<'transaction>: ContentHandle<'transaction>
     where
         Self: 'transaction;
 
     /// Returns a [Stream] of all known tags in the registry.
-    async fn known_tags(&self) -> Result<impl Stream<Item = Tag>, Self::Error>;
+    async fn known_tags(&self) -> Result<impl Stream<Item = String>, Self::Error>;
 
     /// Returns a [Stream] of all known content in the registry that match the
     /// given tags.
     async fn list(
         &self,
-        tags: impl IntoIterator<Item = Tag>,
+        tags: impl IntoIterator<Item = String>,
     ) -> Result<impl Stream<Item = Self::ContentHandle<'_>>, Self::Error>;
 
     /// Creates a snapshot of the current registry state, which can be used to
@@ -112,7 +110,7 @@ pub trait RegistrySavepoint<'transaction> {}
 
 /// A handle to a content in the registry.
 #[async_trait]
-pub trait ContentHandle<'transaction, Tag: Deserializable + Serializable>: AsyncRead {
+pub trait ContentHandle<'transaction>: AsyncRead {
     /// The error that can occur when doing operations on the content.
     type Error: Error;
 
@@ -120,14 +118,14 @@ pub trait ContentHandle<'transaction, Tag: Deserializable + Serializable>: Async
     fn hash(&self) -> ContentHash;
 
     /// Returns the tags of the content.
-    async fn tags(&self) -> Result<impl Stream<Item = Tag>, Self::Error>;
+    async fn tags(&self) -> Result<impl Stream<Item = String>, Self::Error>;
 
     /// Returns whether the content has the given tag.
-    async fn has(&self, tag: Tag) -> Result<bool, Self::Error>;
+    async fn has(&self, tag: String) -> Result<bool, Self::Error>;
 
     /// Adds the given tags to the content.
-    async fn add_tag(&self, tag: Tag) -> Result<(), Self::Error>;
+    async fn add_tag(&self, tag: String) -> Result<(), Self::Error>;
 
     /// Removes the given tags from the content.
-    async fn remove_tag(&self, tag: Tag) -> Result<(), Self::Error>;
+    async fn remove_tag(&self, tag: String) -> Result<(), Self::Error>;
 }
