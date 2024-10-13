@@ -10,6 +10,7 @@ categories = ["development-tools"]
 edition = "2021"
 
 [dependencies]
+uuid = "1.10.0"
 async-trait = "0.1.83"
 futures = "0.3.31"
 
