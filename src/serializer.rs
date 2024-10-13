@@ -7,6 +7,7 @@ use std::io;
 
 use async_trait::async_trait;
 use futures::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
+use uuid::Uuid;
 
 /// Serializable objects can be serialized to an `AsyncWrite`.
 #[async_trait]
@@ -58,6 +59,19 @@ impl Serializable for bool {
     }
 }
 
+#[async_trait]
+impl Serializable for Uuid {
+    #[inline]
+    async fn serialize(&self, mut writer: impl AsyncWrite + Unpin + Send) -> io::Result<()> {
+        writer.write_all(self.as_bytes()).await
+    }
+
+    #[inline]
+    async fn serialize_len(&self) -> usize {
+        16
+    }
+}
+
 /// Deserializable objects can be deserialized from an `AsyncRead`.
 #[async_trait]
 pub trait Deserializable: Sized {
@@ -94,5 +108,15 @@ impl Deserializable for bool {
         let mut buf = [0_u8; 1];
         reader.read_exact(&mut buf).await?;
         Ok(buf[0] != 0)
+    }
+}
+
+#[async_trait]
+impl Deserializable for Uuid {
+    #[inline]
+    async fn deserialize(mut reader: impl AsyncRead + Unpin + Send) -> io::Result<Self> {
+        let mut buf = [0_u8; 16];
+        reader.read_exact(&mut buf).await?;
+        Ok(Self::from_bytes(buf))
     }
 }
