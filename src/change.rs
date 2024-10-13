@@ -37,6 +37,7 @@ impl LineId {
 ///
 /// For more information, look at
 /// [the SVG documentation](https://github.com/solipr/solipr/blob/main/docs/svg.md).
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub enum SingleId {
     /// The [Change] updates the content of a line.
     LineContent(FileId, LineId),
