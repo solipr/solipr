@@ -60,10 +60,10 @@ pub struct Change {
     /// If there is more than 3 changes to be replaced, you should make one
     /// change to replace the first 3 changes and then make another change
     /// to replace the first created change with the rest.
-    replace: StackVec<ChangeHash, 3>,
+    pub replace: StackVec<ChangeHash, 3>,
 
     /// The content of the change.
-    content: ChangeContent,
+    pub content: ChangeContent,
 }
 
 impl Change {
