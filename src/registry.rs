@@ -6,42 +6,21 @@ use core::error::Error;
 use async_trait::async_trait;
 use futures::{AsyncRead, Stream};
 
-/// The size of a content tag in bytes.
-const TAG_SIZE: usize = 64;
+use crate::serializer::{Deserializable, Serializable};
 
 /// The hash of a content stored in the registry.
 #[derive(Clone, Copy, Eq, Hash, PartialEq)]
 pub struct ContentHash([u8; 32]);
 
-/// The tag of a content stored in the registry.
-#[derive(Clone, Copy, Eq, Hash, PartialEq)]
-pub struct ContentTag([u8; TAG_SIZE]);
-
-impl<T: ToString> From<T> for ContentTag {
-    #[must_use]
-    #[inline]
-    fn from(value: T) -> Self {
-        let mut bytes = [0_u8; TAG_SIZE];
-        #[expect(
-            clippy::indexing_slicing,
-            reason = "we only take the first TAG_SIZE bytes"
-        )]
-        for (i, byte) in value.to_string().bytes().take(TAG_SIZE).enumerate() {
-            bytes[i] = byte;
-        }
-        Self(bytes)
-    }
-}
-
 /// A registry that can be used to store simple byte arrays of any length
 /// locally.
 #[async_trait]
-pub trait Registry {
+pub trait Registry<Tag: Deserializable + Serializable> {
     /// The error that can occur when opening a transaction to the registry.
     type Error: Error;
 
     /// The type of a transaction that can be opened on the registry.
-    type Transaction<'registry>: RegistryTransaction<'registry>
+    type Transaction<'registry>: RegistryTransaction<'registry, Tag>
     where
         Self: 'registry;
 
@@ -65,7 +44,7 @@ pub trait Registry {
 /// A transaction on a [Registry] that can be used to store and retrieve byte
 /// arrays of any length.
 #[async_trait]
-pub trait RegistryTransaction<'registry> {
+pub trait RegistryTransaction<'registry, Tag: Deserializable + Serializable> {
     /// The error that can occur when doing operations in the transaction.
     type Error: Error;
 
@@ -75,18 +54,18 @@ pub trait RegistryTransaction<'registry> {
         Self: 'transaction;
 
     /// The type of a handle to a content in the registry.
-    type ContentHandle<'transaction>: ContentHandle<'transaction>
+    type ContentHandle<'transaction>: ContentHandle<'transaction, Tag>
     where
         Self: 'transaction;
 
     /// Returns a [Stream] of all known tags in the registry.
-    async fn known_tags(&self) -> Result<impl Stream<Item = ContentTag>, Self::Error>;
+    async fn known_tags(&self) -> Result<impl Stream<Item = Tag>, Self::Error>;
 
     /// Returns a [Stream] of all known content in the registry that match the
     /// given tags.
     async fn list(
         &self,
-        tags: impl IntoIterator<Item = ContentTag>,
+        tags: impl IntoIterator<Item = Tag>,
     ) -> Result<impl Stream<Item = Self::ContentHandle<'_>>, Self::Error>;
 
     /// Creates a snapshot of the current registry state, which can be used to
@@ -133,7 +112,7 @@ pub trait RegistrySavepoint<'transaction> {}
 
 /// A handle to a content in the registry.
 #[async_trait]
-pub trait ContentHandle<'transaction>: AsyncRead {
+pub trait ContentHandle<'transaction, Tag: Deserializable + Serializable>: AsyncRead {
     /// The error that can occur when doing operations on the content.
     type Error: Error;
 
@@ -141,14 +120,14 @@ pub trait ContentHandle<'transaction>: AsyncRead {
     fn hash(&self) -> ContentHash;
 
     /// Returns the tags of the content.
-    async fn tags(&self) -> Result<impl Stream<Item = ContentTag>, Self::Error>;
+    async fn tags(&self) -> Result<impl Stream<Item = Tag>, Self::Error>;
 
     /// Returns whether the content has the given tag.
-    async fn has(&self, tag: ContentTag) -> Result<bool, Self::Error>;
+    async fn has(&self, tag: Tag) -> Result<bool, Self::Error>;
 
     /// Adds the given tags to the content.
-    async fn add_tag(&self, tag: ContentTag) -> Result<(), Self::Error>;
+    async fn add_tag(&self, tag: Tag) -> Result<(), Self::Error>;
 
     /// Removes the given tags from the content.
-    async fn remove_tag(&self, tag: ContentTag) -> Result<(), Self::Error>;
+    async fn remove_tag(&self, tag: Tag) -> Result<(), Self::Error>;
 }
