@@ -84,7 +84,7 @@ pub trait RegistryTransaction<'registry> {
     ///
     /// Returns `None` if the content is not found.
     async fn read(&self, hash: ContentHash)
-    -> Result<Option<Self::ContentHandle<'_>>, Self::Error>;
+        -> Result<Option<Self::ContentHandle<'_>>, Self::Error>;
 
     /// Writes the given data into the registry with the given tags.
     ///
