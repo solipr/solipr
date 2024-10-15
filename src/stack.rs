@@ -18,10 +18,7 @@ use core::ops::{Deref, DerefMut};
 use core::slice::{from_raw_parts, from_raw_parts_mut};
 use std::io;
 
-use async_trait::async_trait;
 use futures::{AsyncRead, AsyncWrite};
-
-use crate::serializer::{Deserializable, Serializable};
 
 /// A [Vec] that is stored on the stack. The maximum number of elements is
 /// limited to `MAX`.
@@ -556,46 +553,6 @@ impl<T: Copy, const MAX: usize> Iterator for StackVecIntoIter<T, MAX> {
             self.index = self.index.saturating_add(1);
             value
         })
-    }
-}
-
-#[async_trait]
-impl<T: Copy + Serializable + Send + Sync, const MAX: usize> Serializable for StackVec<T, MAX> {
-    #[inline]
-    async fn serialize(&self, mut writer: impl AsyncWrite + Unpin + Send) -> io::Result<()> {
-        self.len.serialize(&mut writer).await?;
-        for value in self {
-            value.serialize(&mut writer).await?;
-        }
-        Ok(())
-    }
-
-    #[inline]
-    async fn serialize_len(&self) -> usize {
-        #[expect(
-            clippy::arithmetic_side_effects,
-            reason = "`MAX` is always smaller than 256, so adding 1 will not overflow"
-        )]
-        (1 + self.len as usize)
-    }
-}
-
-#[async_trait]
-impl<T: Copy + Deserializable + Send, const MAX: usize> Deserializable for StackVec<T, MAX> {
-    #[inline]
-    async fn deserialize(mut reader: impl AsyncRead + Unpin + Send) -> io::Result<Self> {
-        let mut vec = Self::new();
-        let len = u8::deserialize(&mut reader).await?;
-        if len as usize > MAX {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidData,
-                format!("vector len ({len}) is greater than MAX ({MAX})"),
-            ));
-        }
-        for _ in 0..len {
-            vec.push(T::deserialize(&mut reader).await?);
-        }
-        Ok(vec)
     }
 }
 

@@ -4,5 +4,4 @@
 
 pub mod change;
 pub mod registry;
-pub mod serializer;
 pub mod stack;
