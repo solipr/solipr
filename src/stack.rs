@@ -16,9 +16,6 @@ use core::hash::{Hash, Hasher};
 use core::mem::MaybeUninit;
 use core::ops::{Deref, DerefMut};
 use core::slice::{from_raw_parts, from_raw_parts_mut};
-use std::io;
-
-use futures::{AsyncRead, AsyncWrite};
 
 /// A [Vec] that is stored on the stack. The maximum number of elements is
 /// limited to `MAX`.
