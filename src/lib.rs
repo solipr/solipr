@@ -3,5 +3,6 @@
 #![feature(stmt_expr_attributes)]
 
 pub mod change;
+pub mod memory;
 pub mod registry;
 pub mod stack;
