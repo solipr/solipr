@@ -17,10 +17,10 @@ use crate::registry::ContentHash;
 pub struct RepositoryId(Uuid);
 
 impl RepositoryId {
-    /// Creates a new [RepositoryId].
+    /// Creates a new [`RepositoryId`] that is guaranteed to be unique.
     #[must_use]
     #[inline]
-    pub fn new() -> Self {
+    pub fn create_new() -> Self {
         Self(Uuid::now_v7())
     }
 }
