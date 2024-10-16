@@ -16,6 +16,13 @@ use crate::registry::ContentHash;
 #[derive(Clone, Copy, PartialEq, Eq, Hash, BorshDeserialize, BorshSerialize)]
 pub struct RepositoryId(Uuid);
 
+impl RepositoryId {
+    /// Creates a new [RepositoryId].
+    pub fn new() -> Self {
+        Self(Uuid::now_v7())
+    }
+}
+
 /// A [Repository] manager, used to open repositories.
 pub trait RepositoryManager {
     /// The error that can be returned when opening a repository.
