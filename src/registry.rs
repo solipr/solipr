@@ -5,18 +5,10 @@ use core::error::Error;
 use std::io::Read;
 
 use borsh::{BorshDeserialize, BorshSerialize};
-use sha2::{Digest, Sha256};
 
 /// The hash of a content stored in the registry.
 #[derive(Clone, Copy, Eq, Hash, PartialEq, BorshDeserialize, BorshSerialize)]
 pub struct ContentHash([u8; 32]);
-
-impl From<Sha256> for ContentHash {
-    #[inline]
-    fn from(hash: Sha256) -> Self {
-        Self(hash.finalize().into())
-    }
-}
 
 /// A registry that can be used to store and retrieve byte arrays of any length.
 pub trait Registry {
