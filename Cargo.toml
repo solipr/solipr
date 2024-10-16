@@ -11,8 +11,6 @@ edition = "2021"
 
 [dependencies]
 uuid = "1.10.0"
-async-trait = "0.1.83"
-futures = "0.3.31"
 
 [lints.rust]
 missing_docs = "warn"
@@ -80,7 +78,6 @@ rest_pat_in_fully_bound_structs = "warn"
 same_name_method = "warn"
 semicolon_inside_block = "warn"
 single_char_lifetime_names = "warn"
-std_instead_of_alloc = "warn"
 std_instead_of_core = "warn"
 str_to_string = "warn"
 string_add = "warn"
