@@ -15,7 +15,6 @@ use crate::stack::StackVec;
 pub struct ChangeHash([u8; 32]);
 
 impl Debug for ChangeHash {
-    #[inline]
     #[expect(clippy::min_ident_chars, reason = "The trait is made that way")]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_tuple("ChangeHash")
@@ -25,7 +24,6 @@ impl Debug for ChangeHash {
 }
 
 impl Display for ChangeHash {
-    #[inline]
     #[expect(clippy::min_ident_chars, reason = "The trait is made that way")]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "change:{}", BASE64_URL_SAFE_NO_PAD.encode(self.0))
@@ -37,7 +35,6 @@ impl Display for ChangeHash {
 pub struct FileId(Uuid);
 
 impl Display for FileId {
-    #[inline]
     #[expect(clippy::min_ident_chars, reason = "The trait is made that way")]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "file:{}", self.0)
@@ -63,7 +60,6 @@ impl LineId {
 }
 
 impl Display for LineId {
-    #[inline]
     #[expect(clippy::min_ident_chars, reason = "The trait is made that way")]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "line:{}", self.0)
@@ -109,7 +105,6 @@ impl Change {
     /// For more information, look at
     /// [the SVG documentation](https://github.com/solipr/solipr/blob/main/docs/svg.md).
     #[must_use]
-    #[inline]
     pub const fn single_id(&self) -> SingleId {
         match self.content {
             ChangeContent::LineExistence {
@@ -129,7 +124,6 @@ impl Change {
 
     /// Returns the hash of this change.
     #[must_use]
-    #[inline]
     pub fn calculate_hash(&self) -> ChangeHash {
         let mut hasher = Sha256::new();
         #[expect(clippy::unused_result_ok, reason = "writing to hasher can't fail")]

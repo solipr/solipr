@@ -13,7 +13,6 @@ use borsh::{BorshDeserialize, BorshSerialize};
 pub struct ContentHash([u8; 32]);
 
 impl Debug for ContentHash {
-    #[inline]
     #[expect(clippy::min_ident_chars, reason = "The trait is made that way")]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_tuple("ContentHash")
@@ -23,7 +22,6 @@ impl Debug for ContentHash {
 }
 
 impl Display for ContentHash {
-    #[inline]
     #[expect(clippy::min_ident_chars, reason = "The trait is made that way")]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "content:{}", BASE64_URL_SAFE_NO_PAD.encode(self.0))
