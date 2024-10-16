@@ -3,8 +3,9 @@
 //! These traits are used to open repositories, apply changes to them and
 //! retrieve information from them.
 
-use core::error::Error;
 use std::collections::HashSet;
+use std::error::Error;
+use std::fmt::{self, Display};
 
 use borsh::{BorshDeserialize, BorshSerialize};
 use uuid::Uuid;
@@ -13,15 +14,21 @@ use crate::change::{Change, ChangeContent, ChangeHash, FileId, LineId, SingleId}
 use crate::registry::ContentHash;
 
 /// The identifier of a repository.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, BorshDeserialize, BorshSerialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, BorshDeserialize, BorshSerialize)]
 pub struct RepositoryId(Uuid);
 
 impl RepositoryId {
     /// Creates a new [`RepositoryId`] that is guaranteed to be unique.
     #[must_use]
-    #[inline]
     pub fn create_new() -> Self {
         Self(Uuid::now_v7())
+    }
+}
+
+impl Display for RepositoryId {
+    #[expect(clippy::min_ident_chars, reason = "The trait is made that way")]
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "repo:{}", self.0)
     }
 }
 
@@ -89,7 +96,6 @@ pub trait Repository<'manager> {
     ///
     /// The default implementation is very inefficient and should be overridden
     /// if possible.
-    #[inline]
     fn heads(&self, single_id: SingleId) -> Result<HashSet<ChangeHash>, Self::Error> {
         let single_changes = self
             .changes()?
@@ -123,7 +129,6 @@ pub trait Repository<'manager> {
     ///
     /// An error will be returned if there was an error while doing the
     /// operation.
-    #[inline]
     fn line_existence(
         &self,
         file_id: FileId,
@@ -156,7 +161,6 @@ pub trait Repository<'manager> {
     ///
     /// An error will be returned if there was an error while doing the
     /// operation.
-    #[inline]
     fn line_content(
         &self,
         file_id: FileId,
@@ -185,7 +189,6 @@ pub trait Repository<'manager> {
     ///
     /// An error will be returned if there was an error while doing the
     /// operation.
-    #[inline]
     fn line_parent(
         &self,
         file_id: FileId,
@@ -217,7 +220,6 @@ pub trait Repository<'manager> {
     ///
     /// An error will be returned if there was an error while doing the
     /// operation.
-    #[inline]
     fn line_child(&self, file_id: FileId, line_id: LineId) -> Result<HashSet<LineId>, Self::Error> {
         let heads = self.heads(SingleId::LineChild(file_id, line_id))?;
         let mut result = HashSet::with_capacity(heads.len());
