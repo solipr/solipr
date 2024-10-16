@@ -249,4 +249,12 @@ pub trait Repository<'manager> {
     /// An error will be returned if there was an error while doing the
     /// operation.
     fn unapply(&self, change_hash: ChangeHash) -> Result<(), Self::Error>;
+
+    /// Commit the changes made to the repository.
+    ///
+    /// # Errors
+    ///
+    /// An error will be returned if there was an error while doing the
+    /// operation.
+    fn commit(self) -> Result<(), Self::Error>;
 }
