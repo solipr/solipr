@@ -4,6 +4,7 @@
 //! retrieve information from them.
 
 use core::error::Error;
+use core::fmt::{self, Display};
 use std::collections::HashSet;
 
 use borsh::{BorshDeserialize, BorshSerialize};
@@ -13,7 +14,7 @@ use crate::change::{Change, ChangeContent, ChangeHash, FileId, LineId, SingleId}
 use crate::registry::ContentHash;
 
 /// The identifier of a repository.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, BorshDeserialize, BorshSerialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, BorshDeserialize, BorshSerialize)]
 pub struct RepositoryId(Uuid);
 
 impl RepositoryId {
@@ -22,6 +23,14 @@ impl RepositoryId {
     #[inline]
     pub fn create_new() -> Self {
         Self(Uuid::now_v7())
+    }
+}
+
+impl Display for RepositoryId {
+    #[inline]
+    #[expect(clippy::min_ident_chars, reason = "The trait is made that way")]
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "repo:{}", self.0)
     }
 }
 
