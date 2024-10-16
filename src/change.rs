@@ -97,7 +97,7 @@ impl Change {
         let mut hasher = Sha256::new();
         #[expect(clippy::unused_result_ok, reason = "writing to hasher can't fail")]
         borsh::to_writer(&mut hasher, self).ok();
-        ChangeHash(ContentHash::from(hasher))
+        ChangeHash(hasher.finalize().into())
     }
 }
 
