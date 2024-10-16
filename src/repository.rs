@@ -18,6 +18,7 @@ pub struct RepositoryId(Uuid);
 
 impl RepositoryId {
     /// Creates a new [RepositoryId].
+    #[must_use]
     #[inline]
     pub fn new() -> Self {
         Self(Uuid::now_v7())
