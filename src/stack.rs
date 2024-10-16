@@ -16,6 +16,9 @@ use core::hash::{Hash, Hasher};
 use core::mem::MaybeUninit;
 use core::ops::{Deref, DerefMut};
 use core::slice::{from_raw_parts, from_raw_parts_mut};
+use std::io::{self, Read};
+
+use borsh::{BorshDeserialize, BorshSerialize};
 
 /// A [Vec] that is stored on the stack. The maximum number of elements is
 /// limited to `MAX`.
@@ -465,6 +468,42 @@ impl<T: Copy, const MAX: usize> DerefMut for StackVec<T, MAX> {
     #[inline]
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.as_mut_slice()
+    }
+}
+
+impl<T: Copy + BorshDeserialize, const MAX: usize> BorshDeserialize for StackVec<T, MAX> {
+    #[inline]
+    fn deserialize_reader<R: Read>(reader: &mut R) -> io::Result<Self> {
+        assert!(MAX <= 255, "MAX cannot be bigger than 255");
+        let len = u8::deserialize_reader(reader)?;
+        if len as usize > MAX {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!("len ({len}) cannot be bigger than MAX ({MAX})"),
+            ));
+        }
+        let mut vec = Self::new();
+        for _ in 0..len {
+            vec.push(T::deserialize_reader(reader)?);
+        }
+        Ok(vec)
+    }
+}
+
+impl<T: Copy + BorshSerialize, const MAX: usize> BorshSerialize for StackVec<T, MAX> {
+    #[inline]
+    fn serialize<W: io::Write>(&self, writer: &mut W) -> io::Result<()> {
+        self.len.serialize(writer)?;
+        for i in 0..self.len as usize {
+            #[expect(
+                clippy::indexing_slicing,
+                reason = "All values from 0 to self.len are in bounds"
+            )]
+            // SAFETY:
+            // All values from 0 to self.len are initialized.
+            unsafe { self.data[i].assume_init() }.serialize(writer)?;
+        }
+        Ok(())
     }
 }
 

@@ -1,20 +1,22 @@
 //! Defines a [Change] struct used to represent a change to a repository.
 
+use borsh::{BorshDeserialize, BorshSerialize};
+use sha2::{Digest, Sha256};
 use uuid::Uuid;
 
 use crate::registry::ContentHash;
 use crate::stack::StackVec;
 
 /// The hash of a change stored in the registry.
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, BorshDeserialize, BorshSerialize)]
 pub struct ChangeHash(ContentHash);
 
 /// The identifier of a file.
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, BorshDeserialize, BorshSerialize)]
 pub struct FileId(Uuid);
 
 /// The identifier of a line in a file.
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, BorshDeserialize, BorshSerialize)]
 pub struct LineId(Uuid);
 
 impl LineId {
@@ -37,13 +39,13 @@ impl LineId {
 ///
 /// For more information, look at
 /// [the SVG documentation](https://github.com/solipr/solipr/blob/main/docs/svg.md).
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, BorshDeserialize, BorshSerialize)]
 pub enum SingleId {
-    /// The [Change] updates the content of a line.
-    LineContent(FileId, LineId),
-
     /// The [Change] updates the existence of a line.
     LineExistence(FileId, LineId),
+
+    /// The [Change] updates the content of a line.
+    LineContent(FileId, LineId),
 
     /// The [Change] updates the parent of a line.
     LineChild(FileId, LineId),
@@ -53,7 +55,7 @@ pub enum SingleId {
 }
 
 /// A change that can be applied to a repository.
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, BorshDeserialize, BorshSerialize)]
 pub struct Change {
     /// The changes replaced by this change.
     ///
@@ -75,12 +77,12 @@ impl Change {
     #[inline]
     pub const fn single_id(&self) -> SingleId {
         match self.content {
-            ChangeContent::LineContent {
-                file_id, line_id, ..
-            } => SingleId::LineContent(file_id, line_id),
             ChangeContent::LineExistence {
                 file_id, line_id, ..
             } => SingleId::LineExistence(file_id, line_id),
+            ChangeContent::LineContent {
+                file_id, line_id, ..
+            } => SingleId::LineContent(file_id, line_id),
             ChangeContent::LineParent {
                 file_id, line_id, ..
             } => SingleId::LineParent(file_id, line_id),
@@ -89,25 +91,23 @@ impl Change {
             } => SingleId::LineChild(file_id, line_id),
         }
     }
+
+    /// Returns the hash of this change.
+    #[must_use]
+    #[inline]
+    pub fn calculate_hash(&self) -> ChangeHash {
+        let mut hasher = Sha256::new();
+        #[expect(clippy::unused_result_ok, reason = "writing to hasher can't fail")]
+        borsh::to_writer(&mut hasher, self).ok();
+        ChangeHash(ContentHash::from(hasher))
+    }
 }
 
 /// The content of a [Change].
 ///
 /// TODO: Add the changes to modify files.
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, BorshDeserialize, BorshSerialize)]
 pub enum ChangeContent {
-    /// Update the content of a line.
-    LineContent {
-        /// The file modified by this change.
-        file_id: FileId,
-
-        /// The line modified by this change.
-        line_id: LineId,
-
-        /// The new content of the line.
-        content: ContentHash,
-    },
-
     /// Update the Existence of a line.
     ///
     /// This change alone cannot really remove the line, it only marks it as
@@ -127,6 +127,18 @@ pub enum ChangeContent {
 
         /// The new existence of the line.
         existence: bool,
+    },
+
+    /// Update the content of a line.
+    LineContent {
+        /// The file modified by this change.
+        file_id: FileId,
+
+        /// The line modified by this change.
+        line_id: LineId,
+
+        /// The new content of the line.
+        content: ContentHash,
     },
 
     /// Update the parent of a line.
