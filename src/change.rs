@@ -24,15 +24,13 @@ impl LineId {
     ///
     /// This is line is not a real line, it is used to indicate the beginning of
     /// the file.
-    #[expect(dead_code, reason = "TODO: Remove this when we don't need it anymore")]
-    const FIRST: Self = Self(Uuid::nil());
+    pub const FIRST: Self = Self(Uuid::nil());
 
     /// The identifier of the last line in a file.
     ///
     /// This is line is not a real line, it is used to indicate the end of the
     /// file.
-    #[expect(dead_code, reason = "TODO: Remove this when we don't need it anymore")]
-    const LAST: Self = Self(Uuid::max());
+    pub const LAST: Self = Self(Uuid::max());
 }
 
 /// The identifier of the SVG modified by a [Change].
