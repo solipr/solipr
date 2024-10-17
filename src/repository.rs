@@ -61,6 +61,9 @@ pub trait RepositoryManager {
     fn open_write(&self, repository_id: RepositoryId) -> Result<Self::Repository<'_>, Self::Error>;
 }
 
+/// The type returned when iterating over changes in a repository.
+pub type IterationItem<E> = Result<(ChangeHash, Change), E>;
+
 /// A repository.
 pub trait Repository<'manager> {
     /// The error that can be returned when doing a repository operation.
@@ -72,8 +75,7 @@ pub trait Repository<'manager> {
     ///
     /// An error will be returned if there was an error while doing the
     /// operation.
-    fn changes(&self)
-    -> Result<impl Iterator<Item = Result<ChangeHash, Self::Error>>, Self::Error>;
+    fn changes(&self) -> Result<impl Iterator<Item = IterationItem<Self::Error>>, Self::Error>;
 
     /// Returns a [Change] with the given [`ChangeHash`].
     ///
@@ -99,22 +101,21 @@ pub trait Repository<'manager> {
     fn heads(&self, single_id: SingleId) -> Result<HashSet<ChangeHash>, Self::Error> {
         let single_changes = self
             .changes()?
-            .map(|change_hash| change_hash.and_then(|change_hash| self.change(change_hash)))
-            .filter_map(|change| match change {
-                Ok(Some(change)) if change.single_id() == single_id => Some(Ok(change)),
-                Err(error) => Some(Err(error)),
-                _ => None,
+            .filter(|change| {
+                change
+                    .as_ref()
+                    .map(|&(_, change)| change.single_id() == single_id)
+                    .unwrap_or(true)
             })
             .collect::<Result<HashSet<_>, _>>()?;
         let mut heads = HashSet::new();
-        'outer: for change in &single_changes {
-            let hash = change.calculate_hash();
-            for other in &single_changes {
-                if other.replace.contains(&hash) {
+        'outer: for &(change_hash, _) in &single_changes {
+            for &(_, other) in &single_changes {
+                if other.replace.contains(&change_hash) {
                     continue 'outer;
                 }
             }
-            heads.insert(hash);
+            heads.insert(change_hash);
         }
         Ok(heads)
     }
