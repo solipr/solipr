@@ -11,7 +11,7 @@ use crate::registry::ContentHash;
 use crate::stack::StackVec;
 
 /// The hash of a change stored in the registry.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, BorshDeserialize, BorshSerialize)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, BorshDeserialize, BorshSerialize)]
 pub struct ChangeHash([u8; 32]);
 
 impl Debug for ChangeHash {
@@ -31,7 +31,9 @@ impl Display for ChangeHash {
 }
 
 /// The identifier of a file.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, BorshDeserialize, BorshSerialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, BorshDeserialize, BorshSerialize,
+)]
 pub struct FileId(Uuid);
 
 impl Display for FileId {
@@ -42,7 +44,9 @@ impl Display for FileId {
 }
 
 /// The identifier of a line in a file.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, BorshDeserialize, BorshSerialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, BorshDeserialize, BorshSerialize,
+)]
 pub struct LineId(Uuid);
 
 impl LineId {
@@ -70,7 +74,9 @@ impl Display for LineId {
 ///
 /// For more information, look at
 /// [the SVG documentation](https://github.com/solipr/solipr/blob/main/docs/svg.md).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, BorshDeserialize, BorshSerialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, BorshDeserialize, BorshSerialize,
+)]
 pub enum SingleId {
     /// The [Change] updates the existence of a line.
     LineExistence(FileId, LineId),
