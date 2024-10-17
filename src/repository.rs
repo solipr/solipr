@@ -61,9 +61,6 @@ pub trait RepositoryManager {
     fn open_write(&self, repository_id: RepositoryId) -> Result<Self::Repository<'_>, Self::Error>;
 }
 
-/// The type returned when iterating over changes in a repository.
-pub type IterationItem<E> = Result<(ChangeHash, Change), E>;
-
 /// A repository.
 pub trait Repository<'manager> {
     /// The error that can be returned when doing a repository operation.
@@ -75,7 +72,7 @@ pub trait Repository<'manager> {
     ///
     /// An error will be returned if there was an error while doing the
     /// operation.
-    fn changes(&self) -> Result<impl Iterator<Item = IterationItem<Self::Error>>, Self::Error>;
+    fn changes(&self) -> impl Iterator<Item = Result<(ChangeHash, Change), Self::Error>>;
 
     /// Returns a [Change] with the given [`ChangeHash`].
     ///
@@ -100,7 +97,7 @@ pub trait Repository<'manager> {
     /// if possible.
     fn heads(&self, single_id: SingleId) -> Result<HashSet<ChangeHash>, Self::Error> {
         let single_changes = self
-            .changes()?
+            .changes()
             .filter(|change| {
                 change
                     .as_ref()
