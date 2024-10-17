@@ -3,8 +3,9 @@
 //! These traits are used to open repositories, apply changes to them and
 //! retrieve information from them.
 
-use core::error::Error;
 use std::collections::HashSet;
+use std::error::Error;
+use std::fmt::{self, Display};
 
 use borsh::{BorshDeserialize, BorshSerialize};
 use uuid::Uuid;
@@ -13,15 +14,23 @@ use crate::change::{Change, ChangeContent, ChangeHash, FileId, LineId, SingleId}
 use crate::registry::ContentHash;
 
 /// The identifier of a repository.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, BorshDeserialize, BorshSerialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, BorshDeserialize, BorshSerialize,
+)]
 pub struct RepositoryId(Uuid);
 
 impl RepositoryId {
     /// Creates a new [`RepositoryId`] that is guaranteed to be unique.
     #[must_use]
-    #[inline]
     pub fn create_new() -> Self {
         Self(Uuid::now_v7())
+    }
+}
+
+impl Display for RepositoryId {
+    #[expect(clippy::min_ident_chars, reason = "The trait is made that way")]
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "repo:{}", self.0)
     }
 }
 
@@ -65,8 +74,7 @@ pub trait Repository<'manager> {
     ///
     /// An error will be returned if there was an error while doing the
     /// operation.
-    fn changes(&self)
-    -> Result<impl Iterator<Item = Result<ChangeHash, Self::Error>>, Self::Error>;
+    fn changes(&self) -> impl Iterator<Item = Result<(ChangeHash, Change), Self::Error>>;
 
     /// Returns a [Change] with the given [`ChangeHash`].
     ///
@@ -89,26 +97,24 @@ pub trait Repository<'manager> {
     ///
     /// The default implementation is very inefficient and should be overridden
     /// if possible.
-    #[inline]
     fn heads(&self, single_id: SingleId) -> Result<HashSet<ChangeHash>, Self::Error> {
         let single_changes = self
-            .changes()?
-            .map(|change_hash| change_hash.and_then(|change_hash| self.change(change_hash)))
-            .filter_map(|change| match change {
-                Ok(Some(change)) if change.single_id() == single_id => Some(Ok(change)),
-                Err(error) => Some(Err(error)),
-                _ => None,
+            .changes()
+            .filter(|change| {
+                change
+                    .as_ref()
+                    .map(|&(_, change)| change.single_id() == single_id)
+                    .unwrap_or(true)
             })
             .collect::<Result<HashSet<_>, _>>()?;
         let mut heads = HashSet::new();
-        'outer: for change in &single_changes {
-            let hash = change.calculate_hash();
-            for other in &single_changes {
-                if other.replace.contains(&hash) {
+        'outer: for &(change_hash, _) in &single_changes {
+            for &(_, other) in &single_changes {
+                if other.replace.contains(&change_hash) {
                     continue 'outer;
                 }
             }
-            heads.insert(hash);
+            heads.insert(change_hash);
         }
         Ok(heads)
     }
@@ -123,7 +129,6 @@ pub trait Repository<'manager> {
     ///
     /// An error will be returned if there was an error while doing the
     /// operation.
-    #[inline]
     fn line_existence(
         &self,
         file_id: FileId,
@@ -156,7 +161,6 @@ pub trait Repository<'manager> {
     ///
     /// An error will be returned if there was an error while doing the
     /// operation.
-    #[inline]
     fn line_content(
         &self,
         file_id: FileId,
@@ -185,7 +189,6 @@ pub trait Repository<'manager> {
     ///
     /// An error will be returned if there was an error while doing the
     /// operation.
-    #[inline]
     fn line_parent(
         &self,
         file_id: FileId,
@@ -217,7 +220,6 @@ pub trait Repository<'manager> {
     ///
     /// An error will be returned if there was an error while doing the
     /// operation.
-    #[inline]
     fn line_child(&self, file_id: FileId, line_id: LineId) -> Result<HashSet<LineId>, Self::Error> {
         let heads = self.heads(SingleId::LineChild(file_id, line_id))?;
         let mut result = HashSet::with_capacity(heads.len());
