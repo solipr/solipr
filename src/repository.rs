@@ -20,14 +20,12 @@ pub struct RepositoryId(Uuid);
 impl RepositoryId {
     /// Creates a new [`RepositoryId`] that is guaranteed to be unique.
     #[must_use]
-    #[inline]
     pub fn create_new() -> Self {
         Self(Uuid::now_v7())
     }
 }
 
 impl Display for RepositoryId {
-    #[inline]
     #[expect(clippy::min_ident_chars, reason = "The trait is made that way")]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "repo:{}", self.0)
@@ -98,7 +96,6 @@ pub trait Repository<'manager> {
     ///
     /// The default implementation is very inefficient and should be overridden
     /// if possible.
-    #[inline]
     fn heads(&self, single_id: SingleId) -> Result<HashSet<ChangeHash>, Self::Error> {
         let single_changes = self
             .changes()?
@@ -132,7 +129,6 @@ pub trait Repository<'manager> {
     ///
     /// An error will be returned if there was an error while doing the
     /// operation.
-    #[inline]
     fn line_existence(
         &self,
         file_id: FileId,
@@ -165,7 +161,6 @@ pub trait Repository<'manager> {
     ///
     /// An error will be returned if there was an error while doing the
     /// operation.
-    #[inline]
     fn line_content(
         &self,
         file_id: FileId,
@@ -194,7 +189,6 @@ pub trait Repository<'manager> {
     ///
     /// An error will be returned if there was an error while doing the
     /// operation.
-    #[inline]
     fn line_parent(
         &self,
         file_id: FileId,
@@ -226,7 +220,6 @@ pub trait Repository<'manager> {
     ///
     /// An error will be returned if there was an error while doing the
     /// operation.
-    #[inline]
     fn line_child(&self, file_id: FileId, line_id: LineId) -> Result<HashSet<LineId>, Self::Error> {
         let heads = self.heads(SingleId::LineChild(file_id, line_id))?;
         let mut result = HashSet::with_capacity(heads.len());

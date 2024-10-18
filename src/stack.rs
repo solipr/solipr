@@ -74,7 +74,6 @@ impl<T: Copy, const MAX: usize> StackVec<T, MAX> {
     /// assert_eq!(format!("{:?}", numbers), "[]");
     /// ```
     #[must_use]
-    #[inline]
     pub const fn new() -> Self {
         assert!(MAX <= 255, "MAX must be less or equal to 255");
 
@@ -101,7 +100,6 @@ impl<T: Copy, const MAX: usize> StackVec<T, MAX> {
     ///
     /// assert_eq!(numbers.is_empty(), true);
     /// ```
-    #[inline]
     pub const fn is_empty(&self) -> bool {
         self.len == 0
     }
@@ -121,7 +119,6 @@ impl<T: Copy, const MAX: usize> StackVec<T, MAX> {
     ///
     /// assert_eq!(numbers.len(), 2);
     /// ```
-    #[inline]
     pub const fn len(&self) -> usize {
         self.len as usize
     }
@@ -142,7 +139,6 @@ impl<T: Copy, const MAX: usize> StackVec<T, MAX> {
     /// assert_eq!(numbers.get(2), Some(3));
     /// assert_eq!(numbers.get(3), None);
     /// ```
-    #[inline]
     pub const fn get(&self, index: usize) -> Option<T> {
         if index >= self.len as usize {
             return None;
@@ -180,7 +176,6 @@ impl<T: Copy, const MAX: usize> StackVec<T, MAX> {
     /// assert_eq!(numbers.push(4), Some(4));
     /// assert_eq!(format!("{:?}", numbers), "[1, 2, 3]");
     /// ```
-    #[inline]
     pub const fn push(&mut self, value: T) -> Option<T> {
         if (self.len as usize) < MAX {
             self.len = self.len.saturating_add(1);
@@ -220,7 +215,6 @@ impl<T: Copy, const MAX: usize> StackVec<T, MAX> {
     /// assert_eq!(numbers.pop(), None);
     /// assert_eq!(format!("{:?}", numbers), "[]");
     /// ```
-    #[inline]
     pub const fn pop(&mut self) -> Option<T> {
         if self.len > 0 {
             self.len = self.len.saturating_sub(1);
@@ -253,7 +247,6 @@ impl<T: Copy, const MAX: usize> StackVec<T, MAX> {
     /// assert_eq!(numbers.remove(87), None);
     /// assert_eq!(format!("{:?}", numbers), "[2, 3, 5]");
     /// ```
-    #[inline]
     pub const fn remove(&mut self, mut index: usize) -> Option<T> {
         if index >= self.len as usize {
             return None;
@@ -301,7 +294,6 @@ impl<T: Copy, const MAX: usize> StackVec<T, MAX> {
     /// assert_eq!(format!("{:?}", numbers), "[]");
     /// assert_eq!(numbers.len(), 0);
     /// ```
-    #[inline]
     pub const fn clear(&mut self) {
         self.len = 0;
     }
@@ -317,7 +309,6 @@ impl<T: Copy, const MAX: usize> StackVec<T, MAX> {
     ///
     /// assert_eq!(format!("{:?}", numbers.as_slice()), "[1, 2, 3, 4, 5]");
     /// ```
-    #[inline]
     pub const fn as_slice(&self) -> &[T] {
         // SAFETY:
         // All values from 0 to self.len are initialized.
@@ -339,7 +330,6 @@ impl<T: Copy, const MAX: usize> StackVec<T, MAX> {
     ///
     /// assert_eq!(format!("{:?}", numbers.as_mut_slice()), "[1, 2, 42, 4, 5]");
     /// ```
-    #[inline]
     pub const fn as_mut_slice(&mut self) -> &mut [T] {
         // SAFETY:
         // All values from 0 to self.len are initialized.
@@ -364,7 +354,6 @@ impl<T: Copy, const MAX: usize> StackVec<T, MAX> {
     /// assert_eq!(iter.next(), Some(5));
     /// assert_eq!(iter.next(), None);
     /// ```
-    #[inline]
     pub const fn iter(&self) -> StackVecIter<T, MAX> {
         StackVecIter {
             vec: self,
@@ -374,14 +363,12 @@ impl<T: Copy, const MAX: usize> StackVec<T, MAX> {
 }
 
 impl<T: Default + Copy, const MAX: usize> Default for StackVec<T, MAX> {
-    #[inline]
     fn default() -> Self {
         Self::new()
     }
 }
 
 impl<T: Copy, const MAX: usize> From<[T; MAX]> for StackVec<T, MAX> {
-    #[inline]
     fn from(value: [T; MAX]) -> Self {
         assert!(value.len() <= MAX, "MAX cannot be bigger than 255");
 
@@ -396,7 +383,6 @@ impl<T: Copy, const MAX: usize> From<[T; MAX]> for StackVec<T, MAX> {
 }
 
 impl<T: Copy + Debug, const MAX: usize> Debug for StackVec<T, MAX> {
-    #[inline]
     #[expect(clippy::min_ident_chars, reason = "The trait is made that way")]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_list()
@@ -418,7 +404,6 @@ impl<T: Copy + Debug, const MAX: usize> Debug for StackVec<T, MAX> {
 impl<T: PartialEq + Copy, const A: usize, const B: usize> PartialEq<StackVec<T, B>>
     for StackVec<T, A>
 {
-    #[inline]
     fn eq(&self, other: &StackVec<T, B>) -> bool {
         self.len == other.len && {
             for i in 0..self.len as usize {
@@ -441,7 +426,6 @@ impl<T: PartialEq + Copy, const A: usize, const B: usize> PartialEq<StackVec<T, 
 impl<T: Copy + Eq, const MAX: usize> Eq for StackVec<T, MAX> {}
 
 impl<T: Copy + Hash, const MAX: usize> Hash for StackVec<T, MAX> {
-    #[inline]
     fn hash<H: Hasher>(&self, state: &mut H) {
         for i in 0..self.len as usize {
             #[expect(
@@ -458,21 +442,18 @@ impl<T: Copy + Hash, const MAX: usize> Hash for StackVec<T, MAX> {
 impl<T: Copy, const MAX: usize> Deref for StackVec<T, MAX> {
     type Target = [T];
 
-    #[inline]
     fn deref(&self) -> &Self::Target {
         self.as_slice()
     }
 }
 
 impl<T: Copy, const MAX: usize> DerefMut for StackVec<T, MAX> {
-    #[inline]
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.as_mut_slice()
     }
 }
 
 impl<T: Copy + BorshDeserialize, const MAX: usize> BorshDeserialize for StackVec<T, MAX> {
-    #[inline]
     fn deserialize_reader<R: Read>(reader: &mut R) -> io::Result<Self> {
         assert!(MAX <= 255, "MAX cannot be bigger than 255");
         let len = u8::deserialize_reader(reader)?;
@@ -491,7 +472,6 @@ impl<T: Copy + BorshDeserialize, const MAX: usize> BorshDeserialize for StackVec
 }
 
 impl<T: Copy + BorshSerialize, const MAX: usize> BorshSerialize for StackVec<T, MAX> {
-    #[inline]
     fn serialize<W: io::Write>(&self, writer: &mut W) -> io::Result<()> {
         self.len.serialize(writer)?;
         for i in 0..self.len as usize {
@@ -512,7 +492,6 @@ impl<'vec, T: Copy, const MAX: usize> IntoIterator for &'vec StackVec<T, MAX> {
 
     type IntoIter = StackVecIter<'vec, T, MAX>;
 
-    #[inline]
     fn into_iter(self) -> Self::IntoIter {
         self.iter()
     }
@@ -523,7 +502,6 @@ impl<T: Copy, const MAX: usize> IntoIterator for StackVec<T, MAX> {
 
     type IntoIter = StackVecIntoIter<T, MAX>;
 
-    #[inline]
     fn into_iter(self) -> Self::IntoIter {
         StackVecIntoIter {
             data: self.data,
@@ -545,7 +523,6 @@ pub struct StackVecIter<'vec, T: Copy, const MAX: usize> {
 impl<T: Copy, const MAX: usize> Iterator for StackVecIter<'_, T, MAX> {
     type Item = T;
 
-    #[inline]
     fn next(&mut self) -> Option<Self::Item> {
         (self.index < self.vec.len).then(|| {
             #[expect(
@@ -576,7 +553,6 @@ pub struct StackVecIntoIter<T: Copy, const MAX: usize> {
 impl<T: Copy, const MAX: usize> Iterator for StackVecIntoIter<T, MAX> {
     type Item = T;
 
-    #[inline]
     fn next(&mut self) -> Option<Self::Item> {
         (self.index < self.len).then(|| {
             #[expect(
