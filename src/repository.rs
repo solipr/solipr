@@ -14,7 +14,9 @@ use crate::change::{Change, ChangeContent, ChangeHash, FileId, LineId, SingleId}
 use crate::registry::ContentHash;
 
 /// The identifier of a repository.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, BorshDeserialize, BorshSerialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, BorshDeserialize, BorshSerialize,
+)]
 pub struct RepositoryId(Uuid);
 
 impl RepositoryId {
