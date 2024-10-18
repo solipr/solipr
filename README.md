@@ -6,7 +6,7 @@
 <!-- PROJECT LOGO -->
 <br />
 <div align="center">
-  <img src="logo.svg" alt="Logo" width="300"></p>
+  <img src="logo/logo.svg" alt="Logo" width="300"></p>
   <h3 align="center">Solipr</h3>
   <p align="center">
     <br />
