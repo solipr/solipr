@@ -1,5 +1,8 @@
 //! Defines a [Change] struct used to represent a change to a repository.
 
+use core::fmt::{self, Debug, Display};
+
+use base64::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
 use sha2::{Digest, Sha256};
 use uuid::Uuid;
@@ -11,12 +14,38 @@ use crate::stack::StackVec;
 #[derive(Clone, Copy, PartialEq, Eq, Hash, BorshDeserialize, BorshSerialize)]
 pub struct ChangeHash([u8; 32]);
 
+impl Debug for ChangeHash {
+    #[inline]
+    #[expect(clippy::min_ident_chars, reason = "The trait is made that way")]
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_tuple("ChangeHash")
+            .field(&format_args!("{}", BASE64_URL_SAFE_NO_PAD.encode(self.0)))
+            .finish()
+    }
+}
+
+impl Display for ChangeHash {
+    #[inline]
+    #[expect(clippy::min_ident_chars, reason = "The trait is made that way")]
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "change:{}", BASE64_URL_SAFE_NO_PAD.encode(self.0))
+    }
+}
+
 /// The identifier of a file.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, BorshDeserialize, BorshSerialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, BorshDeserialize, BorshSerialize)]
 pub struct FileId(Uuid);
 
+impl Display for FileId {
+    #[inline]
+    #[expect(clippy::min_ident_chars, reason = "The trait is made that way")]
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "file:{}", self.0)
+    }
+}
+
 /// The identifier of a line in a file.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, BorshDeserialize, BorshSerialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, BorshDeserialize, BorshSerialize)]
 pub struct LineId(Uuid);
 
 impl LineId {
@@ -33,11 +62,19 @@ impl LineId {
     pub const LAST: Self = Self(Uuid::max());
 }
 
+impl Display for LineId {
+    #[inline]
+    #[expect(clippy::min_ident_chars, reason = "The trait is made that way")]
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "line:{}", self.0)
+    }
+}
+
 /// The identifier of the SVG modified by a [Change].
 ///
 /// For more information, look at
 /// [the SVG documentation](https://github.com/solipr/solipr/blob/main/docs/svg.md).
-#[derive(Clone, Copy, PartialEq, Eq, Hash, BorshDeserialize, BorshSerialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, BorshDeserialize, BorshSerialize)]
 pub enum SingleId {
     /// The [Change] updates the existence of a line.
     LineExistence(FileId, LineId),
@@ -53,7 +90,7 @@ pub enum SingleId {
 }
 
 /// A change that can be applied to a repository.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, BorshDeserialize, BorshSerialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, BorshDeserialize, BorshSerialize)]
 pub struct Change {
     /// The changes replaced by this change.
     ///
@@ -104,7 +141,7 @@ impl Change {
 /// The content of a [Change].
 ///
 /// TODO: Add the changes to modify files.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, BorshDeserialize, BorshSerialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, BorshDeserialize, BorshSerialize)]
 pub enum ChangeContent {
     /// Update the Existence of a line.
     ///

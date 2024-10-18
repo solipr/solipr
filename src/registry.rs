@@ -2,13 +2,33 @@
 //! length.
 
 use core::error::Error;
+use core::fmt::{self, Debug, Display};
 use std::io::Read;
 
+use base64::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
 
 /// The hash of a content stored in the registry.
 #[derive(Clone, Copy, Eq, Hash, PartialEq, BorshDeserialize, BorshSerialize)]
 pub struct ContentHash([u8; 32]);
+
+impl Debug for ContentHash {
+    #[inline]
+    #[expect(clippy::min_ident_chars, reason = "The trait is made that way")]
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_tuple("ContentHash")
+            .field(&format_args!("{}", BASE64_URL_SAFE_NO_PAD.encode(self.0)))
+            .finish()
+    }
+}
+
+impl Display for ContentHash {
+    #[inline]
+    #[expect(clippy::min_ident_chars, reason = "The trait is made that way")]
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "content:{}", BASE64_URL_SAFE_NO_PAD.encode(self.0))
+    }
+}
 
 /// A registry that can be used to store and retrieve byte arrays of any length.
 pub trait Registry {
