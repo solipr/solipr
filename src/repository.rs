@@ -72,8 +72,7 @@ pub trait Repository<'manager> {
     ///
     /// An error will be returned if there was an error while doing the
     /// operation.
-    fn changes(&self)
-    -> Result<impl Iterator<Item = Result<ChangeHash, Self::Error>>, Self::Error>;
+    fn changes(&self) -> impl Iterator<Item = Result<(ChangeHash, Change), Self::Error>>;
 
     /// Returns a [Change] with the given [`ChangeHash`].
     ///
@@ -98,23 +97,22 @@ pub trait Repository<'manager> {
     /// if possible.
     fn heads(&self, single_id: SingleId) -> Result<HashSet<ChangeHash>, Self::Error> {
         let single_changes = self
-            .changes()?
-            .map(|change_hash| change_hash.and_then(|change_hash| self.change(change_hash)))
-            .filter_map(|change| match change {
-                Ok(Some(change)) if change.single_id() == single_id => Some(Ok(change)),
-                Err(error) => Some(Err(error)),
-                _ => None,
+            .changes()
+            .filter(|change| {
+                change
+                    .as_ref()
+                    .map(|&(_, change)| change.single_id() == single_id)
+                    .unwrap_or(true)
             })
             .collect::<Result<HashSet<_>, _>>()?;
         let mut heads = HashSet::new();
-        'outer: for change in &single_changes {
-            let hash = change.calculate_hash();
-            for other in &single_changes {
-                if other.replace.contains(&hash) {
+        'outer: for &(change_hash, _) in &single_changes {
+            for &(_, other) in &single_changes {
+                if other.replace.contains(&change_hash) {
                     continue 'outer;
                 }
             }
-            heads.insert(hash);
+            heads.insert(change_hash);
         }
         Ok(heads)
     }
