@@ -8,6 +8,8 @@ use std::io::Read;
 use base64::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
 
+pub mod memory;
+
 /// The hash of a content stored in the registry.
 #[derive(Clone, Copy, Eq, Hash, PartialEq, BorshDeserialize, BorshSerialize)]
 pub struct ContentHash([u8; 32]);
