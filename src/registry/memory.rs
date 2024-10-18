@@ -10,15 +10,15 @@ use super::{ContentHash, Registry};
 
 /// A memory based [Registry].
 pub struct MemoryRegistry {
-    /// The content of the registry.
-    content: RwLock<HashMap<ContentHash, Arc<[u8]>>>,
+    /// The contents stored in the registry.
+    contents: RwLock<HashMap<ContentHash, Arc<[u8]>>>,
 }
 
 impl Registry for MemoryRegistry {
     type Error = io::Error;
 
     fn read(&self, hash: ContentHash) -> Result<Option<impl Read>, Self::Error> {
-        let Ok(data) = self.content.read() else {
+        let Ok(data) = self.contents.read() else {
             return Err(io::Error::other("failed to read content".to_owned()));
         };
         let Some(content) = data.get(&hash) else {
@@ -38,7 +38,7 @@ impl Registry for MemoryRegistry {
         let hash = hasher.finalize().into();
 
         // Write the content into the registry
-        let Ok(mut data) = self.content.write() else {
+        let Ok(mut data) = self.contents.write() else {
             return Err(io::Error::other("failed to write content".to_owned()));
         };
         data.insert(ContentHash(hash), buffer.into());
