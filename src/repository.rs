@@ -13,6 +13,8 @@ use uuid::Uuid;
 use crate::change::{Change, ChangeContent, ChangeHash, FileId, LineId, SingleId};
 use crate::registry::ContentHash;
 
+pub mod persistent;
+
 /// The identifier of a repository.
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, BorshDeserialize, BorshSerialize,
