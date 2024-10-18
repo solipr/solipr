@@ -1,6 +1,6 @@
 //! Defines a [Change] struct used to represent a change to a repository.
 
-use core::fmt::{self, Debug, Display};
+use std::fmt::{self, Debug, Display};
 
 use base64::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};

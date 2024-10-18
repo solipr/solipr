@@ -1,8 +1,8 @@
 //! A registry that can be used so store and retrieve bytes arrays of any
 //! length.
 
-use core::error::Error;
-use core::fmt::{self, Debug, Display};
+use std::error::Error;
+use std::fmt::{self, Debug, Display};
 use std::io::Read;
 
 use base64::prelude::*;

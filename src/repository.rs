@@ -3,9 +3,9 @@
 //! These traits are used to open repositories, apply changes to them and
 //! retrieve information from them.
 
-use core::error::Error;
-use core::fmt::{self, Display};
 use std::collections::HashSet;
+use std::error::Error;
+use std::fmt::{self, Display};
 
 use borsh::{BorshDeserialize, BorshSerialize};
 use uuid::Uuid;

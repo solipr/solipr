@@ -10,13 +10,13 @@
 //! The maximum number of elements must be less or equal to 255 because the
 //! array size is stored as a [u8].
 
-use core::array::from_fn;
-use core::fmt::{self, Debug};
-use core::hash::{Hash, Hasher};
-use core::mem::MaybeUninit;
-use core::ops::{Deref, DerefMut};
-use core::slice::{from_raw_parts, from_raw_parts_mut};
+use std::array::from_fn;
+use std::fmt::{self, Debug};
+use std::hash::{Hash, Hasher};
 use std::io::{self, Read};
+use std::mem::MaybeUninit;
+use std::ops::{Deref, DerefMut};
+use std::slice::{from_raw_parts, from_raw_parts_mut};
 
 use borsh::{BorshDeserialize, BorshSerialize};
 
