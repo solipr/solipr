@@ -248,7 +248,7 @@ pub trait Repository<'manager> {
     ///
     /// An error will be returned if there was an error while doing the
     /// operation.
-    fn apply(&self, change: Change) -> Result<ChangeHash, Self::Error>;
+    fn apply(&mut self, change: Change) -> Result<ChangeHash, Self::Error>;
 
     /// Unapplies the change with the given [`ChangeHash`].
     ///
@@ -259,7 +259,7 @@ pub trait Repository<'manager> {
     ///
     /// An error will be returned if there was an error while doing the
     /// operation.
-    fn unapply(&self, change_hash: ChangeHash) -> Result<(), Self::Error>;
+    fn unapply(&mut self, change_hash: ChangeHash) -> Result<(), Self::Error>;
 
     /// Commit the changes made to the repository.
     ///
