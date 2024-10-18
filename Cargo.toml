@@ -23,6 +23,7 @@ non_ascii_idents = "warn"
 pedantic = { level = "warn", priority = -1 }
 nursery = { level = "warn", priority = -1 }
 cargo = { level = "warn", priority = -1 }
+multiple_crate_versions = "allow"
 module_name_repetitions = "allow"
 absolute_paths = "warn"
 allow_attributes = "warn"
