@@ -38,7 +38,6 @@ impl PersistentRepositoryManager {
     /// # Errors
     ///
     /// An error will be returned if the folder could not be opened.
-    #[inline]
     pub fn create(folder: impl AsRef<Path>) -> Result<Self, Error> {
         let keyspace = Config::new(folder).open_transactional()?;
         let changes = keyspace.open_partition("changes", PartitionCreateOptions::default())?;
@@ -59,7 +58,6 @@ impl RepositoryManager for PersistentRepositoryManager {
     where
         Self: 'manager;
 
-    #[inline]
     fn open_read(
         &self,
         repository_id: super::RepositoryId,
@@ -71,7 +69,6 @@ impl RepositoryManager for PersistentRepositoryManager {
         })
     }
 
-    #[inline]
     fn open_write(
         &self,
         repository_id: super::RepositoryId,
@@ -129,7 +126,6 @@ impl<'manager> Repository<'manager> for PersistentRepository<'manager> {
         })
     }
 
-    #[inline]
     fn change(&self, change_hash: ChangeHash) -> Result<Option<Change>, Self::Error> {
         let key = borsh::to_vec(&(self.id, change_hash))?;
         let value = match self.transaction {
@@ -142,7 +138,6 @@ impl<'manager> Repository<'manager> for PersistentRepository<'manager> {
         }
     }
 
-    #[inline]
     fn heads(&self, single_id: SingleId) -> Result<HashSet<ChangeHash>, Self::Error> {
         let key = borsh::to_vec(&(self.id, single_id))?;
         let value = match self.transaction {
@@ -155,7 +150,6 @@ impl<'manager> Repository<'manager> for PersistentRepository<'manager> {
         }
     }
 
-    #[inline]
     fn apply(&mut self, change: Change) -> Result<ChangeHash, Self::Error> {
         let RepositoryTransaction::Write(ref mut tx) = self.transaction else {
             return Err(Error::Io(io::Error::new(
@@ -189,7 +183,6 @@ impl<'manager> Repository<'manager> for PersistentRepository<'manager> {
         Ok(change_hash)
     }
 
-    #[inline]
     fn unapply(&mut self, change_hash: ChangeHash) -> Result<(), Self::Error> {
         let RepositoryTransaction::Write(ref mut tx) = self.transaction else {
             return Err(Error::Io(io::Error::new(
@@ -233,7 +226,6 @@ impl<'manager> Repository<'manager> for PersistentRepository<'manager> {
         Ok(())
     }
 
-    #[inline]
     fn commit(self) -> Result<(), Self::Error> {
         match self.transaction {
             RepositoryTransaction::Read(_) => Err(Error::Io(io::Error::new(
