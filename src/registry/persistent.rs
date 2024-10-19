@@ -59,6 +59,7 @@ impl Registry for PersistentRegistry {
             temp_file.write_all(&buffer)?;
         }
         temp_file.flush()?;
+        drop(temp_file);
 
         // Create a unique hash for the content
         let hash = ContentHash(hasher.finalize().into());
