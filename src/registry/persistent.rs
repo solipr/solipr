@@ -17,14 +17,10 @@ impl Registry for PersistentRegistry {
     type Error = io::Error;
 
     fn read(&self, hash: ContentHash) -> Result<Option<impl Read>, Self::Error> {
-        let path = format!("{}/{}", self.path, hash);
-
-        let file = match File::open(path) {
-            Ok(file) => file,
-            Err(err) => return Err(err),
-        };
-
-        Ok(Some(file))
+        match File::open(format!("{}/{}", self.path, hash)) {
+            Ok(file) => Ok(Some(file)),
+            Err(err) => Err(err),
+        }
     }
 
     fn write(&self, mut content: impl Read) -> Result<ContentHash, Self::Error> {
