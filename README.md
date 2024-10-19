@@ -32,5 +32,5 @@ In order to fully understand how Solipr works, you need to read step by step the
 
 **founders**
 
-- [Tipragot](https://tipragot.fr)
+- [Tipragot](https://github.com/tipragot)
 - [CoCoSol](https://cocosol.fr)
