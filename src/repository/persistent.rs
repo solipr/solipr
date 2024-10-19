@@ -26,6 +26,11 @@ pub struct PersistentRepositoryManager {
     /// This partition stores all the changes made to the repository.
     changes: TransactionalPartitionHandle,
 
+    /// A handle to the dependants partition of the database.
+    ///
+    /// This partition stores all [Change] that replace all other [Change].
+    dependants_changes: TransactionalPartitionHandle,
+
     /// A handle to the head partition of the database.
     ///
     /// This partition stores an index to find rapidly the heads of a single.
@@ -41,10 +46,13 @@ impl PersistentRepositoryManager {
     pub fn create(folder: impl AsRef<Path>) -> Result<Self, Error> {
         let keyspace = Config::new(folder).open_transactional()?;
         let changes = keyspace.open_partition("changes", PartitionCreateOptions::default())?;
+        let dependants_changes =
+            keyspace.open_partition("dependants_changes", PartitionCreateOptions::default())?;
         let heads = keyspace.open_partition("heads", PartitionCreateOptions::default())?;
         Ok(Self {
             keyspace,
             changes,
+            dependants_changes,
             heads,
         })
     }
@@ -166,6 +174,12 @@ impl<'manager> Repository<'manager> for PersistentRepository<'manager> {
             borsh::to_vec(&change)?,
         );
 
+        // Update the dependants.
+        for replaced_hash in change.replace {
+            // Get all changes thah replace this change.
+            todo!("update dependants");
+        }
+
         // Update the heads.
         let single_key = borsh::to_vec(&(self.id, change.single_id()))?;
         let heads = tx.get(&self.manager.heads, &single_key)?;
@@ -209,16 +223,22 @@ impl<'manager> Repository<'manager> for PersistentRepository<'manager> {
             None => HashSet::new(),
         };
         heads.remove(&change_hash);
-        'outer: for change_hash in change.replace {
-            // TODO: store the dependant changes for each change to make this faster (for
-            // @CoCoSol007)
-            for entry in tx.prefix(&self.manager.changes, self.id.0.as_bytes()) {
-                let other: Change = borsh::from_slice(&entry?.1)?;
-                if other.replace.contains(&change_hash) {
-                    continue 'outer;
-                }
+        for replaced_hash in change.replace {
+            // Verify that the replaced change is replaced ONLY by this change.
+            let Ok(Some(replaced_change_by)) = tx.get(
+                &self.manager.dependants_changes,
+                borsh::to_vec(&(self.id, replaced_hash))?,
+            ) else {
+                return Err(Error::Io(io::Error::new(
+                    io::ErrorKind::NotFound,
+                    "change not found",
+                )));
+            };
+            let replaced_change_by: HashSet<ChangeHash> = borsh::from_slice(&replaced_change_by)?;
+            if replaced_change_by == HashSet::from([change_hash]) {
+                // Add the replaced change to the heads.
+                heads.insert(replaced_hash);
             }
-            heads.insert(change_hash);
         }
         tx.insert(&self.manager.heads, single_key, borsh::to_vec(&heads)?);
 
