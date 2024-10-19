@@ -9,6 +9,7 @@ use base64::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
 
 pub mod memory;
+pub mod persistent;
 
 /// The hash of a content stored in the registry.
 #[derive(Clone, Copy, Eq, Hash, PartialEq, BorshDeserialize, BorshSerialize)]
