@@ -19,8 +19,9 @@ impl Registry for PersistentRegistry {
     fn read(&self, hash: ContentHash) -> Result<Option<impl Read>, Self::Error> {
         let path = format!("{}/{}", self.path, hash);
 
-        let Ok(file) = File::open(&path) else {
-            return Err(io::Error::other("failed to read content.".to_owned()));
+        let file = match File::open(path) {
+            Ok(file) => file,
+            Err(err) => return Err(err),
         };
 
         Ok(Some(file))
