@@ -26,7 +26,7 @@ pub struct PersistentRepositoryManager {
     /// This partition stores all the changes made to the repository.
     changes: TransactionalPartitionHandle,
 
-    /// A handle to the dependants changes partition of the database.
+    /// A handle to the reverse heads partition of the database.
     ///
     /// This partition stores all the parent changes of all changes.
     reverse_heads: TransactionalPartitionHandle,
@@ -179,18 +179,18 @@ impl<'manager> Repository<'manager> for PersistentRepository<'manager> {
             let serialized_key = borsh::to_vec(&(self.id, replaced_hash))?;
 
             // Get all changes that replace this change.
-            let dependants = tx.get(&self.manager.reverse_heads, &serialized_key)?;
-            let mut dependants = match dependants {
-                Some(dependants) => borsh::from_slice(&dependants)?,
+            let reverse_heads = tx.get(&self.manager.reverse_heads, &serialized_key)?;
+            let mut reverse_heads = match reverse_heads {
+                Some(reverse_heads) => borsh::from_slice(&reverse_heads)?,
                 None => HashSet::new(),
             };
 
-            // Update the dependants by adding this change.
-            dependants.insert(change_hash);
+            // Update the reversed heads by adding this change.
+            reverse_heads.insert(change_hash);
             tx.insert(
                 &self.manager.reverse_heads,
                 serialized_key,
-                borsh::to_vec(&dependants)?,
+                borsh::to_vec(&reverse_heads)?,
             );
         }
 
@@ -241,19 +241,20 @@ impl<'manager> Repository<'manager> for PersistentRepository<'manager> {
             let serialized_key = borsh::to_vec(&(self.id, replaced_hash))?;
 
             // Verify that the replaced change is replaced ONLY by this change.
-            let Some(replaced_change_by) = tx.get(&self.manager.reverse_heads, &serialized_key)?
-            else {
+            let Some(reverse_heads) = tx.get(&self.manager.reverse_heads, &serialized_key)? else {
                 continue;
             };
-            let mut replaced_change_by: HashSet<ChangeHash> =
-                borsh::from_slice(&replaced_change_by)?;
+            let mut replaced_change_by: HashSet<ChangeHash> = borsh::from_slice(&reverse_heads)?;
             if replaced_change_by == HashSet::from([change_hash]) {
                 // Add the replaced change to the heads.
                 heads.insert(replaced_hash);
             }
 
-            // Update the dependants by removing this change.
+            // Update the replaced change by removing this change.
             replaced_change_by.remove(&change_hash);
+            if replaced_change_by.is_empty() {
+                tx.remove(&self.manager.reverse_heads, &serialized_key);
+            }
             tx.insert(
                 &self.manager.reverse_heads,
                 serialized_key,
