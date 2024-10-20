@@ -2,7 +2,7 @@
 
 use std::fs::{self, File};
 use std::io::{self, Read, Write};
-use std::path::{self, PathBuf};
+use std::path::PathBuf;
 
 use base64::prelude::*;
 use sha2::{Digest, Sha256};
@@ -80,7 +80,7 @@ impl Registry for PersistentRegistry {
         // Move the temporary file into the correct location
         let (subfolder, file) = encoded_hash.split_at(2);
         let path_dir = self.folder.join(subfolder);
-        if path_dir.exists() {
+        if !path_dir.exists() {
             fs::create_dir_all(&path_dir)?;
         }
         fs::rename(temp_file_path, path_dir.join(file))?;
