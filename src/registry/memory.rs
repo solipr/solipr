@@ -9,9 +9,18 @@ use sha2::{Digest, Sha256};
 use super::{ContentHash, Registry};
 
 /// A memory based [Registry].
+#[derive(Default)]
 pub struct MemoryRegistry {
     /// The contents stored in the registry.
     contents: RwLock<HashMap<ContentHash, Arc<[u8]>>>,
+}
+
+impl MemoryRegistry {
+    /// Creates a new [`MemoryRegistry`].
+    #[must_use]
+    pub fn new() -> Self {
+        Self::default()
+    }
 }
 
 impl Registry for MemoryRegistry {

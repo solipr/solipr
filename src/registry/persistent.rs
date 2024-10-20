@@ -15,6 +15,16 @@ pub struct PersistentRegistry {
     folder: PathBuf,
 }
 
+impl PersistentRegistry {
+    /// Creates a new [`PersistentRegistry`] from the specified folder.
+    #[must_use]
+    pub fn new(folder: impl Into<PathBuf>) -> Self {
+        Self {
+            folder: folder.into(),
+        }
+    }
+}
+
 impl Registry for PersistentRegistry {
     type Error = io::Error;
 
