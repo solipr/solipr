@@ -245,7 +245,7 @@ impl<'manager> Repository<'manager> for PersistentRepository<'manager> {
                 continue;
             };
             let mut reverse_heads: HashSet<ChangeHash> = borsh::from_slice(&reverse_heads)?;
-            if reverse_heads == HashSet::from([change_hash]) {
+            if reverse_heads.len() == 1 && reverse_heads.contains(&change_hash) {
                 // Add the replaced change to the heads.
                 heads.insert(replaced_hash);
             }
