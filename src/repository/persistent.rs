@@ -26,9 +26,9 @@ pub struct PersistentRepositoryManager {
     /// This partition stores all the changes made to the repository.
     changes: TransactionalPartitionHandle,
 
-    /// A handle to the dependants partition of the database.
+    /// A handle to the dependants changes partition of the database.
     ///
-    /// This partition stores all [Change] that replace all other [Change].
+    /// This partition stores all changes linked to change that replace it.
     dependants_changes: TransactionalPartitionHandle,
 
     /// A handle to the head partition of the database.
@@ -185,6 +185,8 @@ impl<'manager> Repository<'manager> for PersistentRepository<'manager> {
                 Some(dependants) => borsh::from_slice(&dependants)?,
                 None => HashSet::new(),
             };
+
+            // Update the dependants by adding this change.
             dependants.insert(change_hash);
             tx.insert(
                 &self.manager.dependants_changes,
