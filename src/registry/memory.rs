@@ -56,3 +56,19 @@ impl Registry for MemoryRegistry {
         Ok(ContentHash(hash))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::MemoryRegistry;
+    use crate::registry::tests::*;
+
+    #[test]
+    fn read_a_written_value_from_memory() {
+        read_a_written_value(MemoryRegistry::new());
+    }
+
+    #[test]
+    fn read_a_non_written_value_from_memory() {
+        read_a_non_written_value(MemoryRegistry::new());
+    }
+}

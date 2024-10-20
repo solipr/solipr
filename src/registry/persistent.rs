@@ -91,3 +91,19 @@ impl Registry for PersistentRegistry {
         Ok(hash)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::PersistentRegistry;
+    use crate::registry::tests::*;
+
+    #[test]
+    fn read_a_written_value_from_persistent() {
+        read_a_written_value(PersistentRegistry::new(""));
+    }
+
+    #[test]
+    fn read_a_non_written_value_from_persistent() {
+        read_a_non_written_value(PersistentRegistry::new("/"));
+    }
+}
