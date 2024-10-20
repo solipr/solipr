@@ -6,6 +6,7 @@ use std::path::PathBuf;
 
 use base64::prelude::*;
 use sha2::{Digest, Sha256};
+use tempfile::tempdir;
 
 use super::{ContentHash, Registry};
 
@@ -46,13 +47,8 @@ impl Registry for PersistentRegistry {
     }
 
     fn write(&self, mut content: impl Read) -> Result<ContentHash, Self::Error> {
-        // Create the folder if it doesn't exist
-        if !self.folder.exists() {
-            fs::create_dir_all(&self.folder)?;
-        }
-
         // Create a temporary file to store the content in.
-        let temp_file_path = self.folder.join(uuid::Uuid::now_v7().to_string());
+        let temp_file_path = tempdir()?.path().join(uuid::Uuid::now_v7().to_string());
         let mut temp_file = File::create(&temp_file_path)?;
 
         // Loop 32 bytes at a time and update the hasher
