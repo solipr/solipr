@@ -71,6 +71,15 @@ mod tests {
         let hash_1 = registry.write(Cursor::new(content_1)).unwrap();
         let hash_2 = registry.write(Cursor::new(content_2)).unwrap();
 
+        assert_eq!(
+            hash_1.to_string(),
+            "content:LPJNul-wow4m6DsqxbninhsWHlwfp0JecwQzYpOLmCQ"
+        );
+        assert_eq!(
+            hash_2.to_string(),
+            "content:SG6kYiTRu0-2gPNPfJrZao8k7Ii-c-qOWmxlJg6cuKc"
+        );
+
         let mut read_content_1 = registry.read(hash_1).unwrap().unwrap();
         let mut buffer_1 = Vec::new();
         read_content_1.read_to_end(&mut buffer_1).unwrap();
