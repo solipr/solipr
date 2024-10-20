@@ -18,16 +18,8 @@ pub struct PersistentRegistry {
 impl PersistentRegistry {
     /// Creates a new [`PersistentRegistry`].
     #[must_use]
-    pub fn new() -> Self {
-        Self::default()
-    }
-}
-
-impl Default for PersistentRegistry {
-    fn default() -> Self {
-        Self {
-            folder: PathBuf::from("./registry"),
-        }
+    pub const fn new(folder: PathBuf) -> Self {
+        Self { folder }
     }
 }
 
