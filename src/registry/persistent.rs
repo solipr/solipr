@@ -18,8 +18,10 @@ pub struct PersistentRegistry {
 impl PersistentRegistry {
     /// Creates a new [`PersistentRegistry`].
     #[must_use]
-    pub const fn new(folder: PathBuf) -> Self {
-        Self { folder }
+    pub fn new(folder: impl Into<PathBuf>) -> Self {
+        Self {
+            folder: folder.into(),
+        }
     }
 }
 
