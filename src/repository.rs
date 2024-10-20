@@ -121,6 +121,57 @@ pub trait Repository<'manager> {
         Ok(heads)
     }
 
+    /// Returns the the existing [`LineId`]s in a file of the [Repository].
+    ///
+    /// If the existence of a line was not defined, it is considered to not
+    /// exist.
+    ///
+    /// If the existence of a line is in a conflict state, this function will
+    /// return it.
+    ///
+    /// # Errors
+    ///
+    /// An error will be returned if there was an error while doing the
+    /// operation.
+    ///
+    /// # Note
+    ///
+    /// The default implementation is very inefficient and should be overridden
+    /// if possible.
+    fn existing_lines(&self, file_id: FileId) -> Result<HashSet<LineId>, Self::Error> {
+        // Get all the lines in the file that have an existence change
+        let file_lines = self
+            .changes()
+            .filter_map(|change| {
+                change
+                    .map(|(_, change)| match change.content {
+                        ChangeContent::LineExistence {
+                            file_id: change_file_id,
+                            line_id,
+                            existence,
+                            ..
+                        } if change_file_id == file_id && existence => Some(line_id),
+                        ChangeContent::LineExistence { .. }
+                        | ChangeContent::LineContent { .. }
+                        | ChangeContent::LineParent { .. }
+                        | ChangeContent::LineChild { .. } => None,
+                    })
+                    .transpose()
+            })
+            .collect::<Result<HashSet<_>, _>>()?;
+
+        // Filter out the ones that don't exist
+        let mut result = HashSet::new();
+        for line_id in file_lines {
+            if let Some(true) | None = self.line_existence(file_id, line_id)? {
+                result.insert(line_id);
+            }
+        }
+
+        // Return the result
+        Ok(result)
+    }
+
     /// Returns the existence of the given [`LineId`].
     ///
     /// If there is an existence conflict, `None` will be returned. If there
