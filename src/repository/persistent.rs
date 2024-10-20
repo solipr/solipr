@@ -244,21 +244,21 @@ impl<'manager> Repository<'manager> for PersistentRepository<'manager> {
             let Some(reverse_heads) = tx.get(&self.manager.reverse_heads, &serialized_key)? else {
                 continue;
             };
-            let mut replaced_change_by: HashSet<ChangeHash> = borsh::from_slice(&reverse_heads)?;
-            if replaced_change_by == HashSet::from([change_hash]) {
+            let mut reverse_heads: HashSet<ChangeHash> = borsh::from_slice(&reverse_heads)?;
+            if reverse_heads == HashSet::from([change_hash]) {
                 // Add the replaced change to the heads.
                 heads.insert(replaced_hash);
             }
 
             // Update the replaced change by removing this change.
-            replaced_change_by.remove(&change_hash);
-            if replaced_change_by.is_empty() {
+            reverse_heads.remove(&change_hash);
+            if reverse_heads.is_empty() {
                 tx.remove(&self.manager.reverse_heads, &serialized_key);
             }
             tx.insert(
                 &self.manager.reverse_heads,
                 serialized_key,
-                borsh::to_vec(&replaced_change_by)?,
+                borsh::to_vec(&reverse_heads)?,
             );
         }
         tx.insert(&self.manager.heads, single_key, borsh::to_vec(&heads)?);
