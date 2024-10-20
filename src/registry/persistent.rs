@@ -46,9 +46,14 @@ impl Registry for PersistentRegistry {
     }
 
     fn write(&self, mut content: impl Read) -> Result<ContentHash, Self::Error> {
+        // Create the folder if it doesn't exist
+        if !self.folder.exists() {
+            fs::create_dir_all(&self.folder)?;
+        }
+
         // Create a temporary file to store the content in.
         let temp_file_path = self.folder.join(uuid::Uuid::now_v7().to_string());
-        let mut temp_file = File::create(self.folder.join(&temp_file_path))?;
+        let mut temp_file = File::create(&temp_file_path)?;
 
         // Loop 32 bytes at a time and update the hasher
         // until we reach the end of the content
@@ -66,7 +71,11 @@ impl Registry for PersistentRegistry {
                 reason = "byte_count is always smaller or equal than 32"
             )]
             hasher.update(&buffer[..byte_count]);
-            temp_file.write_all(&buffer)?;
+            #[expect(
+                clippy::indexing_slicing,
+                reason = "byte_count is always smaller or equal than 32"
+            )]
+            temp_file.write_all(&buffer[..byte_count])?;
         }
         temp_file.flush()?;
         drop(temp_file);
@@ -76,16 +85,12 @@ impl Registry for PersistentRegistry {
         let encoded_hash = BASE64_URL_SAFE_NO_PAD.encode(hash.0);
 
         // Move the temporary file into the correct location
-        fs::rename(
-            temp_file_path,
-            #[expect(
-                clippy::string_slice,
-                reason = "there is always more than 2 characters in 32 bytes encoded in base64"
-            )]
-            self.folder
-                .join(&encoded_hash[..2])
-                .join(&encoded_hash[2..]),
-        )?;
+        let (subfolder, file) = encoded_hash.split_at(2);
+        let path_dir = self.folder.join(subfolder);
+        if !path_dir.exists() {
+            fs::create_dir_all(&path_dir)?;
+        }
+        fs::rename(temp_file_path, path_dir.join(file))?;
 
         // Return the hash of the content
         Ok(hash)
