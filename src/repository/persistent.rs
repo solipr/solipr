@@ -46,13 +46,13 @@ impl PersistentRepositoryManager {
     pub fn create(folder: impl AsRef<Path>) -> Result<Self, Error> {
         let keyspace = Config::new(folder).open_transactional()?;
         let changes = keyspace.open_partition("changes", PartitionCreateOptions::default())?;
-        let dependants_changes =
-            keyspace.open_partition("dependants_changes", PartitionCreateOptions::default())?;
+        let reverse_heads =
+            keyspace.open_partition("reverse_heads", PartitionCreateOptions::default())?;
         let heads = keyspace.open_partition("heads", PartitionCreateOptions::default())?;
         Ok(Self {
             keyspace,
             changes,
-            reverse_heads: dependants_changes,
+            reverse_heads,
             heads,
         })
     }
@@ -174,7 +174,7 @@ impl<'manager> Repository<'manager> for PersistentRepository<'manager> {
             borsh::to_vec(&change)?,
         );
 
-        // Update the dependants.
+        // Update the reversed heads.
         for replaced_hash in change.replace {
             let serialized_key = borsh::to_vec(&(self.id, replaced_hash))?;
 
@@ -241,7 +241,7 @@ impl<'manager> Repository<'manager> for PersistentRepository<'manager> {
             let serialized_key = borsh::to_vec(&(self.id, replaced_hash))?;
 
             // Verify that the replaced change is replaced ONLY by this change.
-            let Ok(Some(replaced_change_by)) = tx.get(&self.manager.reverse_heads, &serialized_key)
+            let Some(replaced_change_by) = tx.get(&self.manager.reverse_heads, &serialized_key)?
             else {
                 continue;
             };
