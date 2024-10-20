@@ -96,3 +96,24 @@ impl Registry for PersistentRegistry {
         Ok(hash)
     }
 }
+
+#[cfg(test)]
+#[expect(clippy::unwrap_used, reason = "the tests do not need error handling")]
+mod tests {
+    use tempfile;
+
+    use super::PersistentRegistry;
+    use crate::registry::tests::*;
+
+    #[test]
+    fn read_a_written_value_from_persistent() {
+        let temp_dir = tempfile::tempdir().unwrap().path().to_owned();
+        read_a_written_value(&PersistentRegistry::new(temp_dir));
+    }
+
+    #[test]
+    fn read_a_non_written_value_from_persistent() {
+        let temp_dir = tempfile::tempdir().unwrap().path().to_owned();
+        read_a_non_written_value(&PersistentRegistry::new(temp_dir));
+    }
+}
