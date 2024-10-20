@@ -64,11 +64,11 @@ mod tests {
 
     #[test]
     fn read_a_written_value_from_memory() {
-        read_a_written_value(MemoryRegistry::new());
+        read_a_written_value(&MemoryRegistry::new());
     }
 
     #[test]
     fn read_a_non_written_value_from_memory() {
-        read_a_non_written_value(MemoryRegistry::new());
+        read_a_non_written_value(&MemoryRegistry::new());
     }
 }

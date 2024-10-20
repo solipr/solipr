@@ -108,12 +108,12 @@ mod tests {
     #[test]
     fn read_a_written_value_from_persistent() {
         let temp_dir = tempfile::tempdir().unwrap().path().to_owned();
-        read_a_written_value(PersistentRegistry::new(temp_dir));
+        read_a_written_value(&PersistentRegistry::new(temp_dir));
     }
 
     #[test]
     fn read_a_non_written_value_from_persistent() {
         let temp_dir = tempfile::tempdir().unwrap().path().to_owned();
-        read_a_non_written_value(PersistentRegistry::new(temp_dir));
+        read_a_non_written_value(&PersistentRegistry::new(temp_dir));
     }
 }

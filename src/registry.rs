@@ -64,7 +64,7 @@ mod tests {
 
     use super::*;
 
-    pub fn read_a_written_value(registry: impl Registry) {
+    pub fn read_a_written_value(registry: &impl Registry) {
         let content = b"hello";
         let hash = registry.write(Cursor::new(content)).unwrap();
 
@@ -76,7 +76,7 @@ mod tests {
         assert_eq!(buffer, content);
     }
 
-    pub fn read_a_non_written_value(registry: impl Registry) {
+    pub fn read_a_non_written_value(registry: &impl Registry) {
         let random_hash = ContentHash([0; 32]);
 
         let read_content = registry.read(random_hash).unwrap();
