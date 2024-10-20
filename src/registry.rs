@@ -65,15 +65,22 @@ mod tests {
     use super::*;
 
     pub fn read_a_written_value(registry: &impl Registry) {
-        let content = b"hello";
-        let hash = registry.write(Cursor::new(content)).unwrap();
+        let content_1 = b"hello";
+        let content_2 = b"world";
 
-        let read_content = registry.read(hash).unwrap();
+        let hash_1 = registry.write(Cursor::new(content_1)).unwrap();
+        let hash_2 = registry.write(Cursor::new(content_2)).unwrap();
 
-        let mut read_content = read_content.unwrap();
-        let mut buffer = Vec::new();
-        read_content.read_to_end(&mut buffer).unwrap();
-        assert_eq!(buffer, content);
+        let mut read_content_1 = registry.read(hash_1).unwrap().unwrap();
+        let mut buffer_1 = Vec::new();
+        read_content_1.read_to_end(&mut buffer_1).unwrap();
+
+        let mut read_content_2 = registry.read(hash_2).unwrap().unwrap();
+        let mut buffer_2 = Vec::new();
+        read_content_2.read_to_end(&mut buffer_2).unwrap();
+
+        assert_eq!(buffer_1, content_1);
+        assert_eq!(buffer_2, content_2);
     }
 
     pub fn read_a_non_written_value(registry: &impl Registry) {
