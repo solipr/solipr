@@ -26,6 +26,11 @@ pub struct PersistentRepositoryManager {
     /// This partition stores all the changes made to the repository.
     changes: TransactionalPartitionHandle,
 
+    /// A handle to the reverse heads partition of the database.
+    ///
+    /// This partition stores all the parent changes of all changes.
+    reverse_heads: TransactionalPartitionHandle,
+
     /// A handle to the head partition of the database.
     ///
     /// This partition stores an index to find rapidly the heads of a single.
@@ -41,10 +46,13 @@ impl PersistentRepositoryManager {
     pub fn create(folder: impl AsRef<Path>) -> Result<Self, Error> {
         let keyspace = Config::new(folder).open_transactional()?;
         let changes = keyspace.open_partition("changes", PartitionCreateOptions::default())?;
+        let reverse_heads =
+            keyspace.open_partition("reverse_heads", PartitionCreateOptions::default())?;
         let heads = keyspace.open_partition("heads", PartitionCreateOptions::default())?;
         Ok(Self {
             keyspace,
             changes,
+            reverse_heads,
             heads,
         })
     }
@@ -166,6 +174,26 @@ impl<'manager> Repository<'manager> for PersistentRepository<'manager> {
             borsh::to_vec(&change)?,
         );
 
+        // Update the reversed heads.
+        for replaced_hash in change.replace {
+            let serialized_key = borsh::to_vec(&(self.id, replaced_hash))?;
+
+            // Get all changes that replace this change.
+            let reverse_heads = tx.get(&self.manager.reverse_heads, &serialized_key)?;
+            let mut reverse_heads = match reverse_heads {
+                Some(reverse_heads) => borsh::from_slice(&reverse_heads)?,
+                None => HashSet::new(),
+            };
+
+            // Update the reversed heads by adding this change.
+            reverse_heads.insert(change_hash);
+            tx.insert(
+                &self.manager.reverse_heads,
+                serialized_key,
+                borsh::to_vec(&reverse_heads)?,
+            );
+        }
+
         // Update the heads.
         let single_key = borsh::to_vec(&(self.id, change.single_id()))?;
         let heads = tx.get(&self.manager.heads, &single_key)?;
@@ -209,16 +237,29 @@ impl<'manager> Repository<'manager> for PersistentRepository<'manager> {
             None => HashSet::new(),
         };
         heads.remove(&change_hash);
-        'outer: for change_hash in change.replace {
-            // TODO: store the dependant changes for each change to make this faster (for
-            // @CoCoSol007)
-            for entry in tx.prefix(&self.manager.changes, self.id.0.as_bytes()) {
-                let other: Change = borsh::from_slice(&entry?.1)?;
-                if other.replace.contains(&change_hash) {
-                    continue 'outer;
-                }
+        for replaced_hash in change.replace {
+            let serialized_key = borsh::to_vec(&(self.id, replaced_hash))?;
+
+            // Verify that the replaced change is replaced ONLY by this change.
+            let Some(reverse_heads) = tx.get(&self.manager.reverse_heads, &serialized_key)? else {
+                continue;
+            };
+            let mut reverse_heads: HashSet<ChangeHash> = borsh::from_slice(&reverse_heads)?;
+            if reverse_heads.len() == 1 && reverse_heads.contains(&change_hash) {
+                // Add the replaced change to the heads.
+                heads.insert(replaced_hash);
             }
-            heads.insert(change_hash);
+
+            // Update the replaced change by removing this change.
+            reverse_heads.remove(&change_hash);
+            if reverse_heads.is_empty() {
+                tx.remove(&self.manager.reverse_heads, &serialized_key);
+            }
+            tx.insert(
+                &self.manager.reverse_heads,
+                serialized_key,
+                borsh::to_vec(&reverse_heads)?,
+            );
         }
         tx.insert(&self.manager.heads, single_key, borsh::to_vec(&heads)?);
 
