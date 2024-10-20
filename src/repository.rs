@@ -3,7 +3,7 @@
 //! These traits are used to open repositories, apply changes to them and
 //! retrieve information from them.
 
-use std::collections::HashSet;
+use std::collections::{BTreeSet, HashMap, HashSet};
 use std::error::Error;
 use std::fmt::{self, Display};
 
@@ -291,6 +291,76 @@ pub trait Repository<'manager> {
         Ok(result)
     }
 
+    /// Returns a [`FileGraph`] corresponding to the content of a file in the
+    /// repository.
+    ///
+    /// This graph represent a particular state of an OVG but the missing links
+    /// are also stored. For example if in the repository, a line `A` has a
+    /// child `B` but `B` don't have `A` as a parent, this link will be added to
+    /// this graph.
+    ///
+    /// The missing links are useful because they make deletion conflicts
+    /// visible.
+    ///
+    /// # Errors
+    ///
+    /// An error will be returned if there was an error while doing the
+    /// operation.
+    fn file_graph(&self, file_id: FileId) -> Result<FileGraph, Self::Error> {
+        let mut current = BTreeSet::from_iter(self.existing_lines(file_id)?);
+        let mut graph: HashMap<LineId, FileLine> = HashMap::new();
+
+        // Find all the lines in the graph
+        while let Some(line_id) = current.pop_first() {
+            let line = FileLine {
+                parent: self.line_parent(file_id, line_id)?,
+                child: self.line_child(file_id, line_id)?,
+                content: self.line_content(file_id, line_id)?,
+            };
+
+            // Search for the parents and children in the graph
+            for parent in &line.parent {
+                if !graph.contains_key(parent) && !current.contains(parent) {
+                    current.insert(*parent);
+                }
+            }
+            for child in &line.child {
+                if !graph.contains_key(child) && !current.contains(child) {
+                    current.insert(*child);
+                }
+            }
+
+            // Add the line to the graph
+            graph.insert(line_id, line);
+        }
+
+        // Generate the missing links
+        #[expect(
+            clippy::needless_collect,
+            reason = "the collect is needed to make the borrow checker happy, without it we can't \
+                      mutate the graph in the loop"
+        )]
+        #[expect(
+            clippy::indexing_slicing,
+            reason = "if a line has a parent or a child, it must be in the graph at this point"
+        )]
+        for line_id in graph.keys().copied().collect::<Vec<_>>() {
+            for parent in graph[&line_id].parent.clone() {
+                if let Some(line) = graph.get_mut(&parent) {
+                    line.child.insert(line_id);
+                }
+            }
+            for child in graph[&line_id].child.clone() {
+                if let Some(line) = graph.get_mut(&child) {
+                    line.parent.insert(line_id);
+                }
+            }
+        }
+
+        // Return the graph
+        Ok(FileGraph(graph))
+    }
+
     /// Applies the given [`Change`] to the repository and returns the hash of
     /// the applied change.
     ///
@@ -321,4 +391,25 @@ pub trait Repository<'manager> {
     /// An error will be returned if there was an error while doing the
     /// operation.
     fn commit(self) -> Result<(), Self::Error>;
+}
+
+/// A graph that contains the state of a file in the repository.
+///
+/// This graph represent a particular state of an OVG but the missing links are
+/// also stored. For example if in the repository, a line `A` has a child `B`
+/// but `B` don't have `A` as a parent, this link will be added to this graph.
+#[expect(dead_code, reason = "not yet implemented")]
+pub struct FileGraph(HashMap<LineId, FileLine>);
+
+/// A line in a [`FileGraph`].
+struct FileLine {
+    /// The parent of the line.
+    parent: HashSet<LineId>,
+
+    /// The child of the line.
+    child: HashSet<LineId>,
+
+    /// The content of the line.
+    #[expect(dead_code, reason = "not yet implemented")]
+    content: HashSet<ContentHash>,
 }
