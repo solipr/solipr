@@ -16,7 +16,7 @@ pub struct PersistentRegistry {
 }
 
 impl PersistentRegistry {
-    /// Creates a new [`PersistentRegistry`].
+    /// Creates a new [`PersistentRegistry`] from the specified folder.
     #[must_use]
     pub fn new(folder: impl Into<PathBuf>) -> Self {
         Self {
