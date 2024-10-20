@@ -28,8 +28,8 @@ pub struct PersistentRepositoryManager {
 
     /// A handle to the dependants changes partition of the database.
     ///
-    /// This partition stores all changes linked to change that replace it.
-    dependants_changes: TransactionalPartitionHandle,
+    /// This partition stores all the parent changes of all changes.
+    reverse_heads: TransactionalPartitionHandle,
 
     /// A handle to the head partition of the database.
     ///
@@ -52,7 +52,7 @@ impl PersistentRepositoryManager {
         Ok(Self {
             keyspace,
             changes,
-            dependants_changes,
+            reverse_heads: dependants_changes,
             heads,
         })
     }
@@ -176,10 +176,10 @@ impl<'manager> Repository<'manager> for PersistentRepository<'manager> {
 
         // Update the dependants.
         for replaced_hash in change.replace {
-            let hashed_key = borsh::to_vec(&(self.id, replaced_hash))?;
+            let serialized_key = borsh::to_vec(&(self.id, replaced_hash))?;
 
             // Get all changes that replace this change.
-            let dependants = tx.get(&self.manager.dependants_changes, &hashed_key)?;
+            let dependants = tx.get(&self.manager.reverse_heads, &serialized_key)?;
             let mut dependants = match dependants {
                 Some(dependants) => borsh::from_slice(&dependants)?,
                 None => HashSet::new(),
@@ -188,8 +188,8 @@ impl<'manager> Repository<'manager> for PersistentRepository<'manager> {
             // Update the dependants by adding this change.
             dependants.insert(change_hash);
             tx.insert(
-                &self.manager.dependants_changes,
-                hashed_key,
+                &self.manager.reverse_heads,
+                serialized_key,
                 borsh::to_vec(&dependants)?,
             );
         }
@@ -238,21 +238,27 @@ impl<'manager> Repository<'manager> for PersistentRepository<'manager> {
         };
         heads.remove(&change_hash);
         for replaced_hash in change.replace {
+            let serialized_key = borsh::to_vec(&(self.id, replaced_hash))?;
+
             // Verify that the replaced change is replaced ONLY by this change.
-            let Ok(Some(replaced_change_by)) = tx.get(
-                &self.manager.dependants_changes,
-                borsh::to_vec(&(self.id, replaced_hash))?,
-            ) else {
-                return Err(Error::Io(io::Error::new(
-                    io::ErrorKind::NotFound,
-                    "change not found",
-                )));
+            let Ok(Some(replaced_change_by)) = tx.get(&self.manager.reverse_heads, &serialized_key)
+            else {
+                continue;
             };
-            let replaced_change_by: HashSet<ChangeHash> = borsh::from_slice(&replaced_change_by)?;
+            let mut replaced_change_by: HashSet<ChangeHash> =
+                borsh::from_slice(&replaced_change_by)?;
             if replaced_change_by == HashSet::from([change_hash]) {
                 // Add the replaced change to the heads.
                 heads.insert(replaced_hash);
             }
+
+            // Update the dependants by removing this change.
+            replaced_change_by.remove(&change_hash);
+            tx.insert(
+                &self.manager.reverse_heads,
+                serialized_key,
+                borsh::to_vec(&replaced_change_by)?,
+            );
         }
         tx.insert(&self.manager.heads, single_key, borsh::to_vec(&heads)?);
 
