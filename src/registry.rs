@@ -58,7 +58,7 @@ pub trait Registry {
 }
 
 #[cfg(test)]
-#[expect(clippy::unwrap_used, reason = "the tests dono need error handling")]
+#[expect(clippy::unwrap_used, reason = "the tests do not need error handling")]
 mod tests {
     use std::io::{Cursor, Read};
 
