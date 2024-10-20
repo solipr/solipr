@@ -176,11 +176,10 @@ impl<'manager> Repository<'manager> for PersistentRepository<'manager> {
 
         // Update the dependants.
         for replaced_hash in change.replace {
+            let hashed_key = borsh::to_vec(&(self.id, replaced_hash))?;
+
             // Get all changes that replace this change.
-            let dependants = tx.get(
-                &self.manager.dependants_changes,
-                borsh::to_vec(&(self.id, replaced_hash))?,
-            )?;
+            let dependants = tx.get(&self.manager.dependants_changes, &hashed_key)?;
             let mut dependants = match dependants {
                 Some(dependants) => borsh::from_slice(&dependants)?,
                 None => HashSet::new(),
@@ -190,7 +189,7 @@ impl<'manager> Repository<'manager> for PersistentRepository<'manager> {
             dependants.insert(change_hash);
             tx.insert(
                 &self.manager.dependants_changes,
-                borsh::to_vec(&(self.id, replaced_hash))?,
+                hashed_key,
                 borsh::to_vec(&dependants)?,
             );
         }
