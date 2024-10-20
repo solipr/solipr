@@ -479,7 +479,6 @@ dependencies = [
  "borsh",
  "fjall",
  "sha2",
- "tempfile",
  "uuid",
 ]
 
