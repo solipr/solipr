@@ -12,6 +12,7 @@ use uuid::Uuid;
 
 use crate::change::{Change, ChangeContent, ChangeHash, FileId, LineId, SingleId};
 use crate::registry::ContentHash;
+use crate::stack::StackVec;
 
 pub mod persistent;
 
