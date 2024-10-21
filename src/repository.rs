@@ -389,6 +389,86 @@ pub trait Repository<'manager> {
         Ok(result)
     }
 
+    /// Returns a list of [Change] that transform a file of the [Repository]
+    /// into the given [`FileGraph`].
+    ///
+    /// # Errors
+    ///
+    /// An error will be returned if there was an error while doing the
+    /// operation.
+    fn file_graph_diff(
+        &self,
+        file_id: FileId,
+        graph: &FileGraph,
+    ) -> Result<HashSet<Change>, Self::Error> {
+        let current_graph = self.file_graph(file_id)?;
+        let mut result = HashSet::new();
+
+        // Delete all the lines that are in the repository but not in the graph
+        for line_id in current_graph.0.keys().copied() {
+            if !graph.0.contains_key(&line_id) {
+                result.extend(self.svg_diff(ChangeContent::LineExistence {
+                    file_id,
+                    line_id,
+                    existence: false,
+                })?);
+            }
+        }
+
+        // Add all the lines that are in the graph but not in the repository
+        for line_id in graph.0.keys().copied() {
+            if !current_graph.0.contains_key(&line_id) {
+                result.extend(self.svg_diff(ChangeContent::LineExistence {
+                    file_id,
+                    line_id,
+                    existence: true,
+                })?);
+            }
+        }
+
+        // Update the links and content for each line of the graph
+        for (&line_id, line) in &graph.0 {
+            // Update the parent
+            let current_parent = current_graph.0.get(&line_id).map(|line| &line.parent);
+            if current_parent != Some(&line.parent) {
+                for parent in line.parent.iter().copied() {
+                    result.extend(self.svg_diff(ChangeContent::LineParent {
+                        file_id,
+                        line_id,
+                        parent,
+                    })?);
+                }
+            }
+
+            // Update the child
+            let current_child = current_graph.0.get(&line_id).map(|line| &line.child);
+            if current_child != Some(&line.child) {
+                for child in line.child.iter().copied() {
+                    result.extend(self.svg_diff(ChangeContent::LineChild {
+                        file_id,
+                        line_id,
+                        child,
+                    })?);
+                }
+            }
+
+            // Update the content
+            let current_content = current_graph.0.get(&line_id).map(|line| &line.content);
+            if current_content != Some(&line.content) {
+                for content in line.content.iter().copied() {
+                    result.extend(self.svg_diff(ChangeContent::LineContent {
+                        file_id,
+                        line_id,
+                        content,
+                    })?);
+                }
+            }
+        }
+
+        // Returns the changes
+        Ok(result)
+    }
+
     /// Applies the given [`Change`] to the repository and returns the hash of
     /// the applied change.
     ///
@@ -426,7 +506,6 @@ pub trait Repository<'manager> {
 /// This graph represent a particular state of an OVG but the missing links are
 /// also stored. For example if in the repository, a line `A` has a child `B`
 /// but `B` don't have `A` as a parent, this link will be added to this graph.
-#[expect(dead_code, reason = "not yet implemented")]
 pub struct FileGraph(HashMap<LineId, FileLine>);
 
 /// A line in a [`FileGraph`].
@@ -438,6 +517,5 @@ struct FileLine {
     child: HashSet<LineId>,
 
     /// The content of the line.
-    #[expect(dead_code, reason = "not yet implemented")]
     content: HashSet<ContentHash>,
 }
