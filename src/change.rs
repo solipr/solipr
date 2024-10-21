@@ -112,20 +112,7 @@ impl Change {
     /// [the SVG documentation](https://github.com/solipr/solipr/blob/main/docs/svg.md).
     #[must_use]
     pub const fn single_id(&self) -> SingleId {
-        match self.content {
-            ChangeContent::LineExistence {
-                file_id, line_id, ..
-            } => SingleId::LineExistence(file_id, line_id),
-            ChangeContent::LineContent {
-                file_id, line_id, ..
-            } => SingleId::LineContent(file_id, line_id),
-            ChangeContent::LineParent {
-                file_id, line_id, ..
-            } => SingleId::LineParent(file_id, line_id),
-            ChangeContent::LineChild {
-                file_id, line_id, ..
-            } => SingleId::LineChild(file_id, line_id),
-        }
+        self.content.single_id()
     }
 
     /// Returns the hash of this change.
@@ -205,4 +192,28 @@ pub enum ChangeContent {
         /// The new child of the line.
         child: LineId,
     },
+}
+
+impl ChangeContent {
+    /// Returns the SVG modified by this [ChangeContent].
+    ///
+    /// For more information, look at
+    /// [the SVG documentation](https://github.com/solipr/solipr/blob/main/docs/svg.md).
+    #[must_use]
+    pub const fn single_id(&self) -> SingleId {
+        match *self {
+            Self::LineExistence {
+                file_id, line_id, ..
+            } => SingleId::LineExistence(file_id, line_id),
+            Self::LineContent {
+                file_id, line_id, ..
+            } => SingleId::LineContent(file_id, line_id),
+            Self::LineParent {
+                file_id, line_id, ..
+            } => SingleId::LineParent(file_id, line_id),
+            Self::LineChild {
+                file_id, line_id, ..
+            } => SingleId::LineChild(file_id, line_id),
+        }
+    }
 }
