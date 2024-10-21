@@ -308,6 +308,7 @@ pub trait Repository<'manager> {
     /// operation.
     fn file_graph(&self, file_id: FileId) -> Result<FileGraph, Self::Error> {
         let mut current = BTreeSet::from_iter(self.existing_lines(file_id)?);
+        current.extend([LineId::FIRST, LineId::LAST]);
         let mut graph: HashMap<LineId, FileLine> = HashMap::new();
 
         // Find all the lines in the graph
