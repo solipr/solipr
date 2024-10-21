@@ -204,7 +204,17 @@ impl<'manager> Repository<'manager> for PersistentRepository<'manager> {
         for change_hash in change.replace {
             heads.remove(&change_hash);
         }
-        heads.insert(change_hash);
+        let reverse_heads = tx.get(
+            &self.manager.reverse_heads,
+            borsh::to_vec(&(self.id, change_hash))?,
+        )?;
+        let reverse_heads: HashSet<ChangeHash> = match reverse_heads {
+            Some(reverse_heads) => borsh::from_slice(&reverse_heads)?,
+            None => HashSet::new(),
+        };
+        if reverse_heads.is_empty() {
+            heads.insert(change_hash);
+        }
         tx.insert(&self.manager.heads, single_key, borsh::to_vec(&heads)?);
 
         // Return the change hash.
