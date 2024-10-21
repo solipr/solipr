@@ -104,6 +104,29 @@ impl<T: Copy, const MAX: usize> StackVec<T, MAX> {
         self.len == 0
     }
 
+    /// Return `true` if the [`StackVec`] is full, `false` otherwise.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use solipr::stack::StackVec;
+    ///
+    /// let mut numbers = StackVec::<i32, 2>::new();
+    ///
+    /// assert_eq!(numbers.is_full(), false);
+    ///
+    /// numbers.push(1);
+    ///
+    /// assert_eq!(numbers.is_full(), false);
+    ///
+    /// numbers.push(2);
+    ///
+    /// assert_eq!(numbers.is_full(), true);
+    /// ```
+    pub const fn is_full(&self) -> bool {
+        self.len as usize == MAX
+    }
+
     /// Return the number of elements in the [`StackVec`].
     ///
     /// # Example
