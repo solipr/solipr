@@ -195,7 +195,7 @@ pub enum ChangeContent {
 }
 
 impl ChangeContent {
-    /// Returns the SVG modified by this [ChangeContent].
+    /// Returns the SVG modified by this [`ChangeContent`].
     ///
     /// For more information, look at
     /// [the SVG documentation](https://github.com/solipr/solipr/blob/main/docs/svg.md).
