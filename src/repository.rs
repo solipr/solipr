@@ -526,3 +526,107 @@ struct FileLine {
     /// The content of the line.
     content: HashSet<ContentHash>,
 }
+
+/// A graph that contains the state of a file in the repository.
+///
+/// This graph does not contain any cycles. This graph is made from a
+/// [`FileGraph`] using the Tarjan's algorithm.
+struct AcyclicFileGraph<'graph>(HashMap<LineId, Vec<&'graph FileLine>>);
+
+impl<'graph> AcyclicFileGraph<'graph> {
+    /// An implementation of Tarjan's algorithm.
+    ///
+    /// For more information,
+    /// see <https://en.wikipedia.org/wiki/Tarjan%27s_strongly_connected_components_algorithm>
+    fn tarjan_search(
+        &mut self,
+        current: LineId,
+        graph: &'graph FileGraph,
+        last_identifier: &mut usize,
+        identifiers: &mut HashMap<LineId, Option<usize>>,
+        stack: &mut Vec<LineId>,
+        lowlink_values: &mut HashMap<LineId, usize>,
+    ) {
+        // Add the current line to the stack
+        stack.push(current);
+
+        // Set the identifier and the low link value
+        identifiers.insert(current, Some(*last_identifier));
+        lowlink_values.insert(current, *last_identifier);
+
+        *last_identifier = {
+            #[expect(
+                clippy::expect_used,
+                reason = "the computer can't have any memory to store all the lines"
+            )]
+            last_identifier.checked_add(1).expect("too many lines")
+        };
+
+        // Iterate over all neighbors of the current line
+        #[expect(
+            clippy::indexing_slicing,
+            reason = "current line is always in the graph"
+        )]
+        for &next in &graph.0[&current].child {
+            // If the neighbor is not visited, visit it
+            if !identifiers.contains_key(&next) {
+                self.tarjan_search(
+                    next,
+                    graph,
+                    last_identifier,
+                    identifiers,
+                    stack,
+                    lowlink_values,
+                );
+            }
+
+            // If the neighbor is on the stack, update the low link value
+            if stack.contains(&next) {
+                lowlink_values.insert(current, lowlink_values[&current].min(lowlink_values[&next]));
+            }
+        }
+
+        // If the current line is the root of a SCC
+        if identifiers[&current] == Some(lowlink_values[&current]) {
+            let mut result = HashMap::new();
+            while let Some(line) = stack.pop() {
+                #[expect(
+                    clippy::indexing_slicing,
+                    reason = "all values in the stack come from the graph"
+                )]
+                result.insert(line, &graph.0[&line]);
+                if line == current {
+                    break;
+                }
+            }
+            if result.contains_key(&LineId::FIRST) {
+                self.0.insert(LineId::FIRST, result.into_values().collect());
+            } else if result.contains_key(&LineId::LAST) {
+                self.0.insert(LineId::LAST, result.into_values().collect());
+            } else {
+                self.0.insert(current, result.into_values().collect());
+            }
+        }
+    }
+}
+
+impl<'graph> From<&'graph FileGraph> for AcyclicFileGraph<'graph> {
+    fn from(value: &'graph FileGraph) -> Self {
+        let mut last_identifier = 0;
+        let mut identifiers = HashMap::new();
+        let mut stack = Vec::new();
+        let mut lowlink_values = HashMap::new();
+
+        // Build the graph
+        let mut graph = AcyclicFileGraph(HashMap::new());
+        graph.tarjan_search(
+            LineId::FIRST,
+            value,
+            &mut last_identifier,
+            &mut identifiers,
+            &mut stack,
+            &mut lowlink_values,
+        );
+        graph
+    }
+}
