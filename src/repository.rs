@@ -3,6 +3,7 @@
 //! These traits are used to open repositories, apply changes to them and
 //! retrieve information from them.
 
+use std::collections::hash_map::Entry;
 use std::collections::{BTreeSet, HashMap, HashSet};
 use std::error::Error;
 use std::fmt::{self, Display};
@@ -316,53 +317,59 @@ pub trait Repository<'manager> {
     fn file_graph(&self, file_id: FileId) -> Result<FileGraph, Self::Error> {
         let mut current = BTreeSet::from_iter(self.existing_lines(file_id)?);
         current.extend([LineId::FIRST, LineId::LAST]);
-        let mut graph: HashMap<LineId, FileLine> = HashMap::new();
+        let mut graph: HashMap<LineId, FileLine> = HashMap::with_capacity(current.len());
 
         // Find all the lines in the graph
         while let Some(line_id) = current.pop_first() {
-            let line = FileLine {
-                parent: self.line_parent(file_id, line_id)?,
-                child: self.line_child(file_id, line_id)?,
-                content: self.line_content(file_id, line_id)?,
-            };
+            let parents = self.line_parent(file_id, line_id)?;
+            let children = self.line_child(file_id, line_id)?;
+            let contents = self.line_content(file_id, line_id)?;
 
             // Search for the parents and children in the graph
-            for parent in &line.parent {
+            for parent in &parents {
+                // Update the links in the graph
+                let parent_line = graph.entry(*parent).or_insert_with(|| FileLine {
+                    parent: HashSet::new(),
+                    child: HashSet::new(),
+                    content: HashSet::new(),
+                });
+                parent_line.child.insert(line_id);
+
+                // If the line is unknown, add it to the lines to be processed
                 if !graph.contains_key(parent) && !current.contains(parent) {
                     current.insert(*parent);
                 }
             }
-            for child in &line.child {
+            for child in &children {
+                // Update the links in the graph
+                let child_line = graph.entry(*child).or_insert_with(|| FileLine {
+                    parent: HashSet::new(),
+                    child: HashSet::new(),
+                    content: HashSet::new(),
+                });
+                child_line.parent.insert(line_id);
+
+                // If the line is unknown, add it to the lines to be processed
                 if !graph.contains_key(child) && !current.contains(child) {
                     current.insert(*child);
                 }
             }
 
-            // Add the line to the graph
-            graph.insert(line_id, line);
-        }
-
-        // Generate the missing links
-        #[expect(
-            clippy::needless_collect,
-            reason = "the collect is needed to make the borrow checker happy, without it we can't \
-                      mutate the graph in the loop"
-        )]
-        #[expect(
-            clippy::indexing_slicing,
-            reason = "if a line has a parent or a child, it must be in the graph at this point"
-        )]
-        for line_id in graph.keys().copied().collect::<Vec<_>>() {
-            for parent in graph[&line_id].parent.clone() {
-                if let Some(line) = graph.get_mut(&parent) {
-                    line.child.insert(line_id);
+            // Insert the line in the graph
+            match graph.entry(line_id) {
+                Entry::Occupied(entry) => {
+                    let line = entry.into_mut();
+                    line.parent.extend(self.line_parent(file_id, line_id)?);
+                    line.child.extend(self.line_child(file_id, line_id)?);
+                    line.content.extend(self.line_content(file_id, line_id)?);
+                    line
                 }
-            }
-            for child in graph[&line_id].child.clone() {
-                if let Some(line) = graph.get_mut(&child) {
-                    line.parent.insert(line_id);
-                }
-            }
+                Entry::Vacant(entry) => entry.insert(FileLine {
+                    parent: parents,
+                    child: children,
+                    content: contents,
+                }),
+            };
         }
 
         // Return the graph
