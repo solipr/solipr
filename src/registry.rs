@@ -7,6 +7,7 @@ use std::io::Read;
 
 use base64::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
+use sha2::{Digest, Sha256};
 
 pub mod memory;
 pub mod persistent;
@@ -14,6 +15,14 @@ pub mod persistent;
 /// The hash of a content stored in the registry.
 #[derive(Clone, Copy, Eq, Hash, PartialEq, BorshDeserialize, BorshSerialize)]
 pub struct ContentHash([u8; 32]);
+
+impl<T: AsRef<[u8]>> From<T> for ContentHash {
+    fn from(value: T) -> Self {
+        let mut hasher = Sha256::new();
+        hasher.update(value);
+        Self(hasher.finalize().into())
+    }
+}
 
 impl Debug for ContentHash {
     #[expect(clippy::min_ident_chars, reason = "The trait is made that way")]
