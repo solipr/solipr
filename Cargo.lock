@@ -181,9 +181,9 @@ checksum = "e8c02a5121d4ea3eb16a80748c74f5549a5665e4c21333c6098f283870fbdea6"
 
 [[package]]
 name = "fjall"
-version = "2.1.1"
+version = "2.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "198dcc0b9244eb039365ff675781abfc9450a632dceded535eedc191d763ccf4"
+checksum = "454ffab4307857262156b33ec6d3e61c07a7cda1062b26d368d75aca6d2d16d8"
 dependencies = [
  "byteorder",
  "dashmap",
@@ -388,9 +388,9 @@ dependencies = [
 
 [[package]]
 name = "proc-macro2"
-version = "1.0.88"
+version = "1.0.89"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7c3a7fc5db1e57d5a779a352c8cdb57b29aa4c40cc69c3a68a7fedc815fbf2f9"
+checksum = "f139b0662de085916d1fb67d2b4169d1addddda1919e696f3252b740b629986e"
 dependencies = [
  "unicode-ident",
 ]
@@ -497,9 +497,9 @@ checksum = "33ae9eec00137a8eed469fb4148acd9fc6ac8c3f9b110f52cd34698c8b5bfa0e"
 
 [[package]]
 name = "syn"
-version = "2.0.79"
+version = "2.0.85"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "89132cd0bf050864e1d38dc3bbc07a0eb8e7530af26344d3d2bbbef83499f590"
+checksum = "5023162dfcd14ef8f32034d8bcd4cc5ddc61ef7a247c024a33e24e1f24d21b56"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -583,9 +583,9 @@ dependencies = [
 
 [[package]]
 name = "value-log"
-version = "1.1.0"
+version = "1.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "701aa53f40cdebc413fd3a1e6637c118e6a8d36e40736206f374e3722f0ddf53"
+checksum = "71f2774a6212a226657ca9ce1aae573b711eb014ce7590b48fc3b483d7d47bbe"
 dependencies = [
  "byteorder",
  "log",
