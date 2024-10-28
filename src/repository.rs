@@ -839,13 +839,6 @@ impl LinearFile {
                     result.push(LinearFileLine::Line(id, content));
                 }
             }
-
-            // Add the conflict end
-            let content = regitry
-                .as_ref()
-                .write(&b">>>>>>> CONFLICT"[..])
-                .map_err(LinearFileParseError::Registry)?;
-            result.push(LinearFileLine::Line(LineId::UNKNOWN, content));
         }
 
         // If a cycle is still open, we add it as normal lines
@@ -861,13 +854,6 @@ impl LinearFile {
             for (id, content) in lines {
                 result.push(LinearFileLine::Line(id, content));
             }
-
-            // Add the cycle end
-            let content = regitry
-                .as_ref()
-                .write(&b">>>>>>> CYCLE"[..])
-                .map_err(LinearFileParseError::Registry)?;
-            result.push(LinearFileLine::Line(LineId::UNKNOWN, content));
         }
 
         // Return the parsed file
