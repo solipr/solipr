@@ -12,7 +12,7 @@ pub mod memory;
 pub mod persistent;
 
 /// The hash of a content stored in the registry.
-#[derive(Clone, Copy, Eq, Hash, PartialEq, BorshDeserialize, BorshSerialize)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, BorshDeserialize, BorshSerialize)]
 pub struct ContentHash([u8; 32]);
 
 impl Debug for ContentHash {
