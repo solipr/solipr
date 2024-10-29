@@ -34,7 +34,7 @@ impl RepositoryId {
 }
 
 impl Display for RepositoryId {
-    #[expect(clippy::min_ident_chars, reason = "The trait is made that way")]
+    #[expect(clippy::min_ident_chars, reason = "the trait is made that way")]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "repo:{}", self.0)
     }
