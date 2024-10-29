@@ -3,13 +3,16 @@
 //! These traits are used to open repositories, apply changes to them and
 //! retrieve information from them.
 
+use core::mem::discriminant;
 use std::collections::hash_map::Entry;
 use std::collections::{BTreeSet, HashMap, HashSet};
 use std::error::Error;
 use std::fmt::{self, Display};
+use std::hash::{Hash, Hasher};
 use std::io::{self, BufRead, BufReader, Read, Write};
 
 use borsh::{BorshDeserialize, BorshSerialize};
+use similar::{Algorithm, DiffOp};
 use thiserror::Error;
 use uuid::Uuid;
 
@@ -866,9 +869,36 @@ impl LinearFile {
         // Return the parsed file
         Ok(Self(result))
     }
+
+    /// Populate the ids of all lines in the file using the given
+    /// [`LinearFile`] using the Patience diff algorithm.
+    pub fn populate_ids(&mut self, before: &Self) {
+        let ops = similar::capture_diff_slices(Algorithm::Patience, &before.0, &self.0);
+        for op in ops {
+            if let DiffOp::Equal {
+                old_index,
+                new_index,
+                len,
+            } = op
+            {
+                for offset in 0..len {
+                    if let (
+                        Some(LinearFileLine::Line(old_id, _)),
+                        Some(LinearFileLine::Line(id, _)),
+                    ) = (
+                        before.0.get(old_index.saturating_add(offset)),
+                        self.0.get_mut(new_index.saturating_add(offset)),
+                    ) {
+                        *id = *old_id;
+                    }
+                }
+            }
+        }
+    }
 }
 
 /// A line in a [`LinearFile`].
+#[derive(Debug, Clone, Eq, PartialOrd, Ord)]
 pub enum LinearFileLine {
     /// A normal line.
     Line(LineId, ContentHash),
@@ -888,4 +918,25 @@ pub enum LinearFileLine {
     /// cycle should not be modified too, the only way to change it is by
     /// removing it.
     Cycle(Uuid, Vec<(LineId, ContentHash)>),
+}
+
+impl PartialEq for LinearFileLine {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Line(_, first), Self::Line(_, other)) => first == other,
+            (Self::Conflict(first, _), Self::Conflict(other, _))
+            | (Self::Cycle(first, _), Self::Cycle(other, _)) => first == other,
+            _ => false,
+        }
+    }
+}
+
+impl Hash for LinearFileLine {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        discriminant(self).hash(state);
+        match self {
+            Self::Line(_, content) => content.hash(state),
+            Self::Conflict(id, _) | Self::Cycle(id, _) => id.hash(state),
+        }
+    }
 }
