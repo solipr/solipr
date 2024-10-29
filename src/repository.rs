@@ -8,6 +8,7 @@ use std::collections::{BTreeSet, HashMap, HashSet};
 use std::error::Error;
 use std::fmt::{self, Display};
 use std::io::{self, BufRead, BufReader, Read, Write};
+use std::str::FromStr;
 
 use borsh::{BorshDeserialize, BorshSerialize};
 use thiserror::Error;
@@ -37,6 +38,16 @@ impl Display for RepositoryId {
     #[expect(clippy::min_ident_chars, reason = "The trait is made that way")]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "repo:{}", self.0)
+    }
+}
+
+impl FromStr for RepositoryId {
+    type Err = uuid::Error;
+
+    fn from_str(mut value: &str) -> Result<Self, Self::Err> {
+        value = value.trim();
+        value = value.strip_prefix("repo:").unwrap_or(value);
+        Ok(Self(Uuid::parse_str(value)?))
     }
 }
 

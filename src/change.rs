@@ -1,6 +1,7 @@
 //! Defines a [Change] struct used to represent a change to a repository.
 
 use std::fmt::{self, Debug, Display};
+use std::str::FromStr;
 
 use base64::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
@@ -30,6 +31,18 @@ impl Display for ChangeHash {
     }
 }
 
+impl FromStr for ChangeHash {
+    type Err = base64::DecodeSliceError;
+
+    fn from_str(mut value: &str) -> Result<Self, Self::Err> {
+        value = value.trim();
+        value = value.strip_prefix("change:").unwrap_or(value);
+        let mut buffer = [0; 32];
+        BASE64_URL_SAFE_NO_PAD.decode_slice(value.as_bytes(), &mut buffer)?;
+        Ok(Self(buffer))
+    }
+}
+
 /// The identifier of a file.
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, BorshDeserialize, BorshSerialize,
@@ -40,6 +53,16 @@ impl Display for FileId {
     #[expect(clippy::min_ident_chars, reason = "The trait is made that way")]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "file:{}", self.0)
+    }
+}
+
+impl FromStr for FileId {
+    type Err = uuid::Error;
+
+    fn from_str(mut value: &str) -> Result<Self, Self::Err> {
+        value = value.trim();
+        value = value.strip_prefix("file:").unwrap_or(value);
+        Ok(Self(Uuid::parse_str(value)?))
     }
 }
 
@@ -73,6 +96,16 @@ impl Display for LineId {
     #[expect(clippy::min_ident_chars, reason = "The trait is made that way")]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "line:{}", self.0)
+    }
+}
+
+impl FromStr for LineId {
+    type Err = uuid::Error;
+
+    fn from_str(mut value: &str) -> Result<Self, Self::Err> {
+        value = value.trim();
+        value = value.strip_prefix("line:").unwrap_or(value);
+        Ok(Self(Uuid::parse_str(value)?))
     }
 }
 
