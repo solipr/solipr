@@ -61,6 +61,12 @@ impl LineId {
     /// This is line is not a real line, it is used to indicate the end of the
     /// file.
     pub const LAST: Self = Self(Uuid::max());
+
+    /// The identifier of an unknown line in a file.
+    ///
+    /// This is the identifier used for each line read from a file before using
+    /// the diff algorithm to detect changes.
+    pub const UNKNOWN: Self = Self(Uuid::from_bytes([1; 16]));
 }
 
 impl Display for LineId {
