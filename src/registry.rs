@@ -4,6 +4,7 @@
 use std::error::Error;
 use std::fmt::{self, Debug, Display};
 use std::io::Read;
+use std::str::FromStr;
 
 use base64::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
@@ -28,6 +29,18 @@ impl Display for ContentHash {
     #[expect(clippy::min_ident_chars, reason = "The trait is made that way")]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "content:{}", BASE64_URL_SAFE_NO_PAD.encode(self.0))
+    }
+}
+
+impl FromStr for ContentHash {
+    type Err = base64::DecodeSliceError;
+
+    fn from_str(mut value: &str) -> Result<Self, Self::Err> {
+        value = value.trim();
+        value = value.strip_prefix("content:").unwrap_or(value);
+        let mut buffer = [0; 32];
+        BASE64_URL_SAFE_NO_PAD.decode_slice(value.as_bytes(), &mut buffer)?;
+        Ok(Self(buffer))
     }
 }
 
