@@ -406,13 +406,13 @@ impl<T: Copy, const MAX: usize> From<[T; MAX]> for StackVec<T, MAX> {
 }
 
 impl<T: Copy + Debug, const MAX: usize> Debug for StackVec<T, MAX> {
-    #[expect(clippy::min_ident_chars, reason = "The trait is made that way")]
+    #[expect(clippy::min_ident_chars, reason = "the trait is made that way")]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_list()
             .entries((0..self.len).map(|i| {
                 #[expect(
                     clippy::indexing_slicing,
-                    reason = "All values from 0 to self.len are in bounds"
+                    reason = "all values from 0 to self.len are in bounds"
                 )]
                 // SAFETY:
                 // All values from 0 to self.len are initialized.
@@ -432,7 +432,7 @@ impl<T: PartialEq + Copy, const A: usize, const B: usize> PartialEq<StackVec<T, 
             for i in 0..self.len as usize {
                 #[expect(
                     clippy::indexing_slicing,
-                    reason = "Both StackVec have the same length and all values from 0 to \
+                    reason = "both StackVec have the same length and all values from 0 to \
                               self.len are in bounds"
                 )]
                 // SAFETY:
@@ -453,7 +453,7 @@ impl<T: Copy + Hash, const MAX: usize> Hash for StackVec<T, MAX> {
         for i in 0..self.len as usize {
             #[expect(
                 clippy::indexing_slicing,
-                reason = "All values from 0 to self.len are in bounds"
+                reason = "all values from 0 to self.len are in bounds"
             )]
             // SAFETY:
             // All values from 0 to self.len are initialized.
@@ -500,7 +500,7 @@ impl<T: Copy + BorshSerialize, const MAX: usize> BorshSerialize for StackVec<T, 
         for i in 0..self.len as usize {
             #[expect(
                 clippy::indexing_slicing,
-                reason = "All values from 0 to self.len are in bounds"
+                reason = "all values from 0 to self.len are in bounds"
             )]
             // SAFETY:
             // All values from 0 to self.len are initialized.
@@ -550,7 +550,7 @@ impl<T: Copy, const MAX: usize> Iterator for StackVecIter<'_, T, MAX> {
         (self.index < self.vec.len).then(|| {
             #[expect(
                 clippy::indexing_slicing,
-                reason = "All values from 0 to self.vec.len are in bounds"
+                reason = "all values from 0 to self.vec.len are in bounds"
             )]
             // SAFETY:
             // All values from 0 to self.vec.len are initialized.
@@ -580,7 +580,7 @@ impl<T: Copy, const MAX: usize> Iterator for StackVecIntoIter<T, MAX> {
         (self.index < self.len).then(|| {
             #[expect(
                 clippy::indexing_slicing,
-                reason = "All values from 0 to self.vec.len are in bounds"
+                reason = "all values from 0 to self.vec.len are in bounds"
             )]
             // SAFETY:
             // All values from 0 to self.vec.len are initialized.

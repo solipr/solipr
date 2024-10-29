@@ -16,7 +16,7 @@ use crate::stack::StackVec;
 pub struct ChangeHash([u8; 32]);
 
 impl Debug for ChangeHash {
-    #[expect(clippy::min_ident_chars, reason = "The trait is made that way")]
+    #[expect(clippy::min_ident_chars, reason = "the trait is made that way")]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_tuple("ChangeHash")
             .field(&format_args!("{}", BASE64_URL_SAFE_NO_PAD.encode(self.0)))
@@ -25,7 +25,7 @@ impl Debug for ChangeHash {
 }
 
 impl Display for ChangeHash {
-    #[expect(clippy::min_ident_chars, reason = "The trait is made that way")]
+    #[expect(clippy::min_ident_chars, reason = "the trait is made that way")]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "change:{}", BASE64_URL_SAFE_NO_PAD.encode(self.0))
     }
@@ -50,7 +50,7 @@ impl FromStr for ChangeHash {
 pub struct FileId(Uuid);
 
 impl Display for FileId {
-    #[expect(clippy::min_ident_chars, reason = "The trait is made that way")]
+    #[expect(clippy::min_ident_chars, reason = "the trait is made that way")]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "file:{}", self.0)
     }
@@ -93,7 +93,7 @@ impl LineId {
 }
 
 impl Display for LineId {
-    #[expect(clippy::min_ident_chars, reason = "The trait is made that way")]
+    #[expect(clippy::min_ident_chars, reason = "the trait is made that way")]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "line:{}", self.0)
     }
