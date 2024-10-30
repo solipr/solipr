@@ -9,9 +9,8 @@ use fjall::{
     Config, Error, PartitionCreateOptions, ReadTransaction, Slice, TransactionalKeyspace,
     TransactionalPartitionHandle, WriteTransaction,
 };
-
-use super::{Repository, RepositoryId, RepositoryManager};
-use crate::change::{Change, ChangeHash, SingleId};
+use solipr_core::change::{Change, ChangeHash, SingleId};
+use solipr_core::repository::{Repository, RepositoryId, RepositoryManager};
 
 /// An implementation of the [`RepositoryManager`] that stores data in
 /// persistent storage (on disk).
@@ -66,10 +65,7 @@ impl RepositoryManager for PersistentRepositoryManager {
     where
         Self: 'manager;
 
-    fn open_read(
-        &self,
-        repository_id: super::RepositoryId,
-    ) -> Result<Self::Repository<'_>, Self::Error> {
+    fn open_read(&self, repository_id: RepositoryId) -> Result<Self::Repository<'_>, Self::Error> {
         Ok(PersistentRepository {
             id: repository_id,
             manager: self,
@@ -77,10 +73,7 @@ impl RepositoryManager for PersistentRepositoryManager {
         })
     }
 
-    fn open_write(
-        &self,
-        repository_id: super::RepositoryId,
-    ) -> Result<Self::Repository<'_>, Self::Error> {
+    fn open_write(&self, repository_id: RepositoryId) -> Result<Self::Repository<'_>, Self::Error> {
         Ok(PersistentRepository {
             id: repository_id,
             manager: self,
@@ -117,10 +110,10 @@ impl<'manager> Repository<'manager> for PersistentRepository<'manager> {
     fn changes(&self) -> impl Iterator<Item = Result<(ChangeHash, Change), Self::Error>> {
         let iter: Box<dyn Iterator<Item = Result<(Slice, Slice), _>>> = match self.transaction {
             RepositoryTransaction::Read(ref tx) => {
-                Box::new(tx.prefix(&self.manager.changes, self.id.0.as_bytes()))
+                Box::new(tx.prefix(&self.manager.changes, self.id.as_bytes()))
             }
             RepositoryTransaction::Write(ref tx) => {
-                Box::new(tx.prefix(&self.manager.changes, self.id.0.as_bytes()))
+                Box::new(tx.prefix(&self.manager.changes, self.id.as_bytes()))
             }
         };
 

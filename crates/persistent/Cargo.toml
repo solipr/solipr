@@ -1,0 +1,25 @@
+[package]
+name = "solipr-persistent"
+version = "0.0.1"
+description = "An implementation of persistent data structures for Solipr"
+repository = "https://github.com/solipr/solipr"
+readme = "README.md"
+license = "GPL-3.0-or-later"
+keywords = ["vcs"]
+categories = ["development-tools"]
+edition = "2021"
+
+[dependencies]
+solipr-core = { path = "../core" }
+uuid = { version = "1.11.0", features = ["borsh", "v7"] }
+borsh = { version = "1.5.1", features = ["derive"] }
+base64 = "0.22.1"
+sha2 = "0.10.8"
+fjall = "2.2.0"
+
+[dev-dependencies]
+solipr-core = { path = "../core", features = ["tests"] }
+tempfile = "3.13.0"
+
+[lints]
+workspace = true

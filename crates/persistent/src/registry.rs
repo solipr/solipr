@@ -6,8 +6,7 @@ use std::path::PathBuf;
 
 use base64::prelude::*;
 use sha2::{Digest, Sha256};
-
-use super::{ContentHash, Registry};
+use solipr_core::registry::{ContentHash, Registry};
 
 /// A persistent implementation of [Registry].
 pub struct PersistentRegistry {
@@ -29,7 +28,7 @@ impl Registry for PersistentRegistry {
     type Error = io::Error;
 
     fn read(&self, hash: ContentHash) -> Result<Option<impl Read>, Self::Error> {
-        let encoded_hash = BASE64_URL_SAFE_NO_PAD.encode(hash.0);
+        let encoded_hash = BASE64_URL_SAFE_NO_PAD.encode(hash.as_bytes());
         #[expect(
             clippy::string_slice,
             reason = "there is always more than 2 characters in a ContentHash"
@@ -81,8 +80,8 @@ impl Registry for PersistentRegistry {
         drop(temp_file);
 
         // Create a unique hash for the content
-        let hash = ContentHash(hasher.finalize().into());
-        let encoded_hash = BASE64_URL_SAFE_NO_PAD.encode(hash.0);
+        let hash = ContentHash::new(hasher.finalize().into());
+        let encoded_hash = BASE64_URL_SAFE_NO_PAD.encode(hash.as_bytes());
 
         // Move the temporary file into the correct location
         let (subfolder, file) = encoded_hash.split_at(2);
@@ -100,10 +99,10 @@ impl Registry for PersistentRegistry {
 #[cfg(test)]
 #[expect(clippy::unwrap_used, reason = "the tests do not need error handling")]
 mod tests {
+    use solipr_core::registry::tests::*;
     use tempfile;
 
     use super::PersistentRegistry;
-    use crate::registry::tests::*;
 
     #[test]
     fn read_a_written_value_from_persistent() {

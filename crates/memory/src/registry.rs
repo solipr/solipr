@@ -5,8 +5,7 @@ use std::io::{self, Cursor, Read};
 use std::sync::{Arc, RwLock};
 
 use sha2::{Digest, Sha256};
-
-use super::{ContentHash, Registry};
+use solipr_core::registry::{ContentHash, Registry};
 
 /// A memory based [Registry].
 #[derive(Default)]
@@ -50,17 +49,18 @@ impl Registry for MemoryRegistry {
         let Ok(mut data) = self.contents.write() else {
             return Err(io::Error::other("failed to write content".to_owned()));
         };
-        data.insert(ContentHash(hash), buffer.into());
+        data.insert(ContentHash::new(hash), buffer.into());
 
         // Return the hash of the content
-        Ok(ContentHash(hash))
+        Ok(ContentHash::new(hash))
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use solipr_core::registry::tests::*;
+
     use super::MemoryRegistry;
-    use crate::registry::tests::*;
 
     #[test]
     fn read_a_written_value_from_memory() {

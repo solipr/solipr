@@ -13,12 +13,15 @@
 use std::array::from_fn;
 use std::fmt::{self, Debug};
 use std::hash::{Hash, Hasher};
-use std::io::{self, Read};
 use std::mem::MaybeUninit;
 use std::ops::{Deref, DerefMut};
 use std::slice::{from_raw_parts, from_raw_parts_mut};
 
-use borsh::{BorshDeserialize, BorshSerialize};
+#[cfg(feature = "borsh")]
+use {
+    borsh::{BorshDeserialize, BorshSerialize},
+    std::io::{self, Read},
+};
 
 /// A [Vec] that is stored on the stack. The maximum number of elements is
 /// limited to `MAX`.
@@ -28,7 +31,7 @@ use borsh::{BorshDeserialize, BorshSerialize};
 /// # Example
 ///
 /// ```rust
-/// use solipr::stack::StackVec;
+/// use solipr_stack::vec::StackVec;
 ///
 /// let mut numbers = StackVec::from([1, 2, 3]);
 ///
@@ -67,7 +70,7 @@ impl<T: Copy, const MAX: usize> StackVec<T, MAX> {
     /// # Example
     ///
     /// ```rust
-    /// use solipr::stack::StackVec;
+    /// use solipr_stack::vec::StackVec;
     ///
     /// let numbers = StackVec::<i32, 3>::new();
     ///
@@ -90,7 +93,7 @@ impl<T: Copy, const MAX: usize> StackVec<T, MAX> {
     /// # Example
     ///
     /// ```rust
-    /// use solipr::stack::StackVec;
+    /// use solipr_stack::vec::StackVec;
     ///
     /// let mut numbers = StackVec::from([1, 2, 3]);
     ///
@@ -109,7 +112,7 @@ impl<T: Copy, const MAX: usize> StackVec<T, MAX> {
     /// # Example
     ///
     /// ```rust
-    /// use solipr::stack::StackVec;
+    /// use solipr_stack::vec::StackVec;
     ///
     /// let mut numbers = StackVec::<i32, 2>::new();
     ///
@@ -132,7 +135,7 @@ impl<T: Copy, const MAX: usize> StackVec<T, MAX> {
     /// # Example
     ///
     /// ```rust
-    /// use solipr::stack::StackVec;
+    /// use solipr_stack::vec::StackVec;
     ///
     /// let mut numbers = StackVec::from([1, 2, 3]);
     ///
@@ -153,7 +156,7 @@ impl<T: Copy, const MAX: usize> StackVec<T, MAX> {
     /// # Example
     ///
     /// ```rust
-    /// use solipr::stack::StackVec;
+    /// use solipr_stack::vec::StackVec;
     ///
     /// let mut numbers = StackVec::from([1, 2, 3]);
     ///
@@ -181,7 +184,7 @@ impl<T: Copy, const MAX: usize> StackVec<T, MAX> {
     /// # Example
     ///
     /// ```rust
-    /// use solipr::stack::StackVec;
+    /// use solipr_stack::vec::StackVec;
     ///
     /// let mut numbers = StackVec::<i32, 3>::new();
     ///
@@ -222,7 +225,7 @@ impl<T: Copy, const MAX: usize> StackVec<T, MAX> {
     /// # Example
     ///
     /// ```rust
-    /// use solipr::stack::StackVec;
+    /// use solipr_stack::vec::StackVec;
     ///
     /// let mut numbers = StackVec::from([1, 2, 3]);
     ///
@@ -257,7 +260,7 @@ impl<T: Copy, const MAX: usize> StackVec<T, MAX> {
     /// # Example
     ///
     /// ```rust
-    /// use solipr::stack::StackVec;
+    /// use solipr_stack::vec::StackVec;
     ///
     /// let mut numbers = StackVec::from([1, 2, 3, 4, 5]);
     ///
@@ -305,7 +308,7 @@ impl<T: Copy, const MAX: usize> StackVec<T, MAX> {
     /// # Example
     ///
     /// ```rust
-    /// use solipr::stack::StackVec;
+    /// use solipr_stack::vec::StackVec;
     ///
     /// let mut numbers = StackVec::from([1, 2, 3, 4, 5]);
     ///
@@ -326,7 +329,7 @@ impl<T: Copy, const MAX: usize> StackVec<T, MAX> {
     /// # Example
     ///
     /// ```rust
-    /// use solipr::stack::StackVec;
+    /// use solipr_stack::vec::StackVec;
     ///
     /// let numbers = StackVec::from([1, 2, 3, 4, 5]);
     ///
@@ -343,7 +346,7 @@ impl<T: Copy, const MAX: usize> StackVec<T, MAX> {
     /// # Example
     ///
     /// ```rust
-    /// use solipr::stack::StackVec;
+    /// use solipr_stack::vec::StackVec;
     ///
     /// let mut numbers = StackVec::from([1, 2, 3, 4, 5]);
     ///
@@ -364,7 +367,7 @@ impl<T: Copy, const MAX: usize> StackVec<T, MAX> {
     /// # Example
     ///
     /// ```rust
-    /// use solipr::stack::StackVec;
+    /// use solipr_stack::vec::StackVec;
     ///
     /// let numbers = StackVec::from([1, 2, 3, 4, 5]);
     ///
@@ -476,6 +479,7 @@ impl<T: Copy, const MAX: usize> DerefMut for StackVec<T, MAX> {
     }
 }
 
+#[cfg(feature = "borsh")]
 impl<T: Copy + BorshDeserialize, const MAX: usize> BorshDeserialize for StackVec<T, MAX> {
     fn deserialize_reader<R: Read>(reader: &mut R) -> io::Result<Self> {
         assert!(MAX <= 255, "MAX cannot be bigger than 255");
@@ -494,6 +498,7 @@ impl<T: Copy + BorshDeserialize, const MAX: usize> BorshDeserialize for StackVec
     }
 }
 
+#[cfg(feature = "borsh")]
 impl<T: Copy + BorshSerialize, const MAX: usize> BorshSerialize for StackVec<T, MAX> {
     fn serialize<W: io::Write>(&self, writer: &mut W) -> io::Result<()> {
         self.len.serialize(writer)?;

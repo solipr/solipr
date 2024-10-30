@@ -10,18 +10,17 @@ use std::error::Error;
 use std::fmt::{self, Display};
 use std::hash::{Hash, Hasher};
 use std::io::{self, BufRead, BufReader, Read, Write};
+use std::ops::Deref;
 use std::str::FromStr;
 
 use borsh::{BorshDeserialize, BorshSerialize};
 use similar::{Algorithm, DiffOp};
+use solipr_stack::StackVec;
 use thiserror::Error;
 use uuid::Uuid;
 
 use crate::change::{Change, ChangeContent, ChangeHash, FileId, LineId, SingleId};
 use crate::registry::{ContentHash, Registry};
-use crate::stack::StackVec;
-
-pub mod persistent;
 
 /// The identifier of a repository.
 #[derive(
@@ -51,6 +50,14 @@ impl FromStr for RepositoryId {
         value = value.trim();
         value = value.strip_prefix("repo:").unwrap_or(value);
         Ok(Self(Uuid::parse_str(value)?))
+    }
+}
+
+impl Deref for RepositoryId {
+    type Target = Uuid;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
 

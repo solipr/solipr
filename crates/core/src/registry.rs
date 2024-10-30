@@ -9,12 +9,23 @@ use std::str::FromStr;
 use base64::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
 
-pub mod memory;
-pub mod persistent;
-
 /// The hash of a content stored in the registry.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, BorshDeserialize, BorshSerialize)]
 pub struct ContentHash([u8; 32]);
+
+impl ContentHash {
+    /// Creates a new content hash from raw bytes.
+    #[must_use]
+    pub const fn new(bytes: [u8; 32]) -> Self {
+        Self(bytes)
+    }
+
+    /// Returns the raw bytes of the hash.
+    #[must_use]
+    pub const fn as_bytes(&self) -> &[u8; 32] {
+        &self.0
+    }
+}
 
 impl Debug for ContentHash {
     #[expect(clippy::min_ident_chars, reason = "the trait is made that way")]
@@ -70,13 +81,19 @@ pub trait Registry {
     fn write(&self, content: impl Read) -> Result<ContentHash, Self::Error>;
 }
 
-#[cfg(test)]
-#[expect(clippy::unwrap_used, reason = "the tests do not need error handling")]
-mod tests {
+/// Provides tests for the [`Registry`] trait.
+#[cfg(feature = "tests")]
+#[expect(
+    clippy::unwrap_used,
+    clippy::missing_panics_doc,
+    reason = "the tests do not need error handling"
+)]
+pub mod tests {
     use std::io::{Cursor, Read};
 
-    use super::*;
+    use super::{ContentHash, Registry};
 
+    /// Tests that reading and writing a content works.
     pub fn read_a_written_value(registry: &impl Registry) {
         let content_1 = b"hello";
         let content_2 = b"world";
@@ -86,11 +103,13 @@ mod tests {
 
         assert_eq!(
             hash_1.to_string(),
-            "content:LPJNul-wow4m6DsqxbninhsWHlwfp0JecwQzYpOLmCQ"
+            "content:LPJNul-wow4m6DsqxbninhsWHlwfp0JecwQzYpOLmCQ",
+            "the hash should be a sha-256 hash of the content"
         );
         assert_eq!(
             hash_2.to_string(),
-            "content:SG6kYiTRu0-2gPNPfJrZao8k7Ii-c-qOWmxlJg6cuKc"
+            "content:SG6kYiTRu0-2gPNPfJrZao8k7Ii-c-qOWmxlJg6cuKc",
+            "the hash should be a sha-256 hash of the content"
         );
 
         let mut read_content_1 = registry.read(hash_1).unwrap().unwrap();
@@ -101,15 +120,16 @@ mod tests {
         let mut buffer_2 = Vec::new();
         read_content_2.read_to_end(&mut buffer_2).unwrap();
 
-        assert_eq!(buffer_1, content_1);
-        assert_eq!(buffer_2, content_2);
+        assert_eq!(buffer_1, content_1, "the content should not change");
+        assert_eq!(buffer_2, content_2, "the content should not change");
     }
 
+    /// Tests that reading a non-written value returns `None`.
     pub fn read_a_non_written_value(registry: &impl Registry) {
         let random_hash = ContentHash([0; 32]);
 
         let read_content = registry.read(random_hash).unwrap();
 
-        assert!(read_content.is_none());
+        assert!(read_content.is_none(), "the content should not be found");
     }
 }
