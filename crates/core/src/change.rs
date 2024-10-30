@@ -1,15 +1,16 @@
 //! Defines a [Change] struct used to represent a change to a repository.
 
 use std::fmt::{self, Debug, Display};
+use std::ops::Deref;
 use std::str::FromStr;
 
 use base64::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
 use sha2::{Digest, Sha256};
+use solipr_stack::StackVec;
 use uuid::Uuid;
 
 use crate::registry::ContentHash;
-use crate::stack::StackVec;
 
 /// The hash of a change stored in the registry.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, BorshDeserialize, BorshSerialize)]
@@ -66,6 +67,14 @@ impl FromStr for FileId {
     }
 }
 
+impl Deref for FileId {
+    type Target = Uuid;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
 /// The identifier of a line in a file.
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, BorshDeserialize, BorshSerialize,
@@ -106,6 +115,14 @@ impl FromStr for LineId {
         value = value.trim();
         value = value.strip_prefix("line:").unwrap_or(value);
         Ok(Self(Uuid::parse_str(value)?))
+    }
+}
+
+impl Deref for LineId {
+    type Target = Uuid;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
 

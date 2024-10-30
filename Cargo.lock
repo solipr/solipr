@@ -478,17 +478,44 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3c5e1a9a646d36c3599cd173a41282daf47c44583ad367b8e6837255952e5c67"
 
 [[package]]
-name = "solipr"
+name = "solipr-core"
+version = "0.0.1"
+dependencies = [
+ "base64",
+ "borsh",
+ "sha2",
+ "similar",
+ "solipr-stack",
+ "thiserror",
+ "uuid",
+]
+
+[[package]]
+name = "solipr-memory"
+version = "0.0.1"
+dependencies = [
+ "sha2",
+ "solipr-core",
+]
+
+[[package]]
+name = "solipr-persistent"
 version = "0.0.1"
 dependencies = [
  "base64",
  "borsh",
  "fjall",
  "sha2",
- "similar",
+ "solipr-core",
  "tempfile",
- "thiserror",
  "uuid",
+]
+
+[[package]]
+name = "solipr-stack"
+version = "0.0.1"
+dependencies = [
+ "borsh",
 ]
 
 [[package]]
