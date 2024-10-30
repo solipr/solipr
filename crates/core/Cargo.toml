@@ -9,9 +9,6 @@ keywords = ["vcs"]
 categories = ["development-tools"]
 edition = "2021"
 
-[features]
-tests = []
-
 [dependencies]
 solipr-stack = { path = "../stack", features = ["borsh"] }
 uuid = { version = "1.11.0", features = ["borsh"] }

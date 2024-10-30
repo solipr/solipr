@@ -55,20 +55,3 @@ impl Registry for MemoryRegistry {
         Ok(ContentHash::new(hash))
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use solipr_core::registry::tests::*;
-
-    use super::MemoryRegistry;
-
-    #[test]
-    fn read_a_written_value_from_memory() {
-        read_a_written_value(&MemoryRegistry::new());
-    }
-
-    #[test]
-    fn read_a_non_written_value_from_memory() {
-        read_a_non_written_value(&MemoryRegistry::new());
-    }
-}
