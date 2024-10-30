@@ -13,8 +13,5 @@ edition = "2021"
 solipr-core = { path = "../core" }
 sha2 = "0.10.8"
 
-[dev-dependencies]
-solipr-core = { path = "../core" }
-
 [lints]
 workspace = true

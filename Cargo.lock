@@ -546,7 +546,6 @@ dependencies = [
  "fjall",
  "sha2",
  "solipr-core",
- "tempfile",
  "uuid",
 ]
 

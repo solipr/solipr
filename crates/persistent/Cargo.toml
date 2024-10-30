@@ -17,9 +17,5 @@ base64 = "0.22.1"
 sha2 = "0.10.8"
 fjall = "2.2.0"
 
-[dev-dependencies]
-solipr-core = { path = "../core" }
-tempfile = "3.13.0"
-
 [lints]
 workspace = true
