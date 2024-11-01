@@ -9,7 +9,7 @@ use fjall::{
     Config, Error, PartitionCreateOptions, ReadTransaction, Slice, TransactionalKeyspace,
     TransactionalPartitionHandle, WriteTransaction,
 };
-use solipr_core::change::{Change, ChangeHash, SingleId};
+use solipr_core::change::{Change, ChangeContent, ChangeHash, FileId, LineId, SingleId};
 use solipr_core::repository::{Repository, RepositoryId, RepositoryManager};
 
 /// An implementation of the [`RepositoryManager`] that stores data in
@@ -34,6 +34,11 @@ pub struct PersistentRepositoryManager {
     ///
     /// This partition stores an index to find rapidly the heads of a single.
     heads: TransactionalPartitionHandle,
+
+    /// A handle to the existing lines partition of the database.
+    ///
+    /// This partition stores all the existing lines of the repository.
+    lines: TransactionalPartitionHandle,
 }
 
 impl PersistentRepositoryManager {
@@ -48,11 +53,13 @@ impl PersistentRepositoryManager {
         let reverse_heads =
             keyspace.open_partition("reverse_heads", PartitionCreateOptions::default())?;
         let heads = keyspace.open_partition("heads", PartitionCreateOptions::default())?;
+        let lines = keyspace.open_partition("lines", PartitionCreateOptions::default())?;
         Ok(Self {
             keyspace,
             changes,
             reverse_heads,
             heads,
+            lines,
         })
     }
 }
@@ -104,6 +111,26 @@ pub struct PersistentRepository<'manager> {
     transaction: RepositoryTransaction<'manager>,
 }
 
+impl PersistentRepository<'_> {
+    /// Updates the existence of a line in the repository.
+    fn update_line(&mut self, file_id: FileId, line_id: LineId) -> Result<(), Error> {
+        let existence = (self.line_existence(file_id, line_id)?).unwrap_or(true);
+        let key = borsh::to_vec(&(self.id, file_id, line_id))?;
+        let RepositoryTransaction::Write(ref mut tx) = self.transaction else {
+            return Err(Error::Io(io::Error::new(
+                io::ErrorKind::ReadOnlyFilesystem,
+                "cannot update line in read-only transaction",
+            )));
+        };
+        if existence {
+            tx.insert(&self.manager.lines, key, b"");
+        } else {
+            tx.remove(&self.manager.lines, key);
+        }
+        Ok(())
+    }
+}
+
 impl<'manager> Repository<'manager> for PersistentRepository<'manager> {
     type Error = Error;
 
@@ -149,6 +176,25 @@ impl<'manager> Repository<'manager> for PersistentRepository<'manager> {
             Some(value) => Ok(borsh::from_slice(&value)?),
             None => Ok(HashSet::new()),
         }
+    }
+
+    fn existing_lines(&self, file_id: FileId) -> Result<HashSet<LineId>, Self::Error> {
+        let prefix = borsh::to_vec(&(self.id, file_id))?;
+        let iter: Box<dyn Iterator<Item = Result<(Slice, Slice), _>>> = match self.transaction {
+            RepositoryTransaction::Read(ref tx) => Box::new(tx.prefix(&self.manager.lines, prefix)),
+            RepositoryTransaction::Write(ref tx) => {
+                Box::new(tx.prefix(&self.manager.lines, prefix))
+            }
+        };
+
+        iter.map(|result| match result {
+            Ok((key, _)) => {
+                let (_, _, line_id) = borsh::from_slice::<(RepositoryId, FileId, LineId)>(&key)?;
+                Ok(line_id)
+            }
+            Err(err) => Err(err),
+        })
+        .collect()
     }
 
     fn apply(&mut self, change: Change) -> Result<ChangeHash, Self::Error> {
@@ -210,6 +256,14 @@ impl<'manager> Repository<'manager> for PersistentRepository<'manager> {
         }
         tx.insert(&self.manager.heads, single_key, borsh::to_vec(&heads)?);
 
+        // Update the line existence if needed
+        if let ChangeContent::LineExistence {
+            file_id, line_id, ..
+        } = change.content
+        {
+            self.update_line(file_id, line_id)?;
+        }
+
         // Return the change hash.
         Ok(change_hash)
     }
@@ -265,6 +319,14 @@ impl<'manager> Repository<'manager> for PersistentRepository<'manager> {
             );
         }
         tx.insert(&self.manager.heads, single_key, borsh::to_vec(&heads)?);
+
+        // Update the line existence if needed
+        if let ChangeContent::LineExistence {
+            file_id, line_id, ..
+        } = change.content
+        {
+            self.update_line(file_id, line_id)?;
+        }
 
         // Return success.
         Ok(())
