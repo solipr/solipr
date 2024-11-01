@@ -10,6 +10,7 @@ use fjall::{
     TransactionalPartitionHandle, WriteTransaction,
 };
 use solipr_core::change::{Change, ChangeContent, ChangeHash, FileId, LineId, SingleId};
+use solipr_core::repository::head::HeadExt;
 use solipr_core::repository::{Repository, RepositoryId, RepositoryManager};
 
 /// An implementation of the [`RepositoryManager`] that stores data in
