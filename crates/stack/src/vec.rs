@@ -83,7 +83,7 @@ impl<T: Copy, const MAX: usize> StackVec<T, MAX> {
         Self {
             len: 0,
             // SAFETY:
-            // Uninitialized values will not be read because the the length is initialized to 0.
+            // Uninitialized values will not be read because the the length is initialized to 0
             data: unsafe { MaybeUninit::uninit().assume_init() },
         }
     }
@@ -172,7 +172,7 @@ impl<T: Copy, const MAX: usize> StackVec<T, MAX> {
         #[expect(clippy::indexing_slicing, reason = "the index is checked before")]
         // SAFETY:
         // The index is checked to be in bounds. And all values from 0 to len are
-        // initialized.
+        // initialized
         Some(unsafe { self.data[index].assume_init() })
     }
 
@@ -246,7 +246,7 @@ impl<T: Copy, const MAX: usize> StackVec<T, MAX> {
             self.len = self.len.saturating_sub(1);
             #[expect(clippy::indexing_slicing, reason = "self.len - 1 is always in bounds")]
             // SAFETY:
-            // When self.len > 0, the value at self.len - 1 is initialized.
+            // When self.len > 0, the value at self.len - 1 is initialized
             Some(unsafe { self.data[self.len as usize].assume_init() })
         } else {
             None
@@ -282,7 +282,7 @@ impl<T: Copy, const MAX: usize> StackVec<T, MAX> {
             reason = "index is checked to be in bounds before"
         )]
         // SAFETY:
-        // All values at index smaller than self.len are initialized.
+        // All values at index smaller than self.len are initialized
         let result = unsafe { self.data[index].assume_init() };
         while index < (self.len as usize).saturating_sub(1) {
             #[expect(
@@ -337,7 +337,7 @@ impl<T: Copy, const MAX: usize> StackVec<T, MAX> {
     /// ```
     pub const fn as_slice(&self) -> &[T] {
         // SAFETY:
-        // All values from 0 to self.len are initialized.
+        // All values from 0 to self.len are initialized
         unsafe { from_raw_parts(self.data.as_ptr().cast::<T>(), self.len as usize) }
     }
 
@@ -358,7 +358,7 @@ impl<T: Copy, const MAX: usize> StackVec<T, MAX> {
     /// ```
     pub const fn as_mut_slice(&mut self) -> &mut [T] {
         // SAFETY:
-        // All values from 0 to self.len are initialized.
+        // All values from 0 to self.len are initialized
         unsafe { from_raw_parts_mut(self.data.as_mut_ptr().cast::<T>(), self.len as usize) }
     }
 
@@ -418,7 +418,7 @@ impl<T: Copy + Debug, const MAX: usize> Debug for StackVec<T, MAX> {
                     reason = "all values from 0 to self.len are in bounds"
                 )]
                 // SAFETY:
-                // All values from 0 to self.len are initialized.
+                // All values from 0 to self.len are initialized
                 unsafe {
                     self.data[i as usize].assume_init()
                 }
@@ -439,7 +439,7 @@ impl<T: PartialEq + Copy, const A: usize, const B: usize> PartialEq<StackVec<T, 
                               self.len are in bounds"
                 )]
                 // SAFETY:
-                // All values from 0 to self.len are initialized.
+                // All values from 0 to self.len are initialized
                 if unsafe { self.data[i].assume_init() } != unsafe { other.data[i].assume_init() } {
                     return false;
                 }
@@ -459,7 +459,7 @@ impl<T: Copy + Hash, const MAX: usize> Hash for StackVec<T, MAX> {
                 reason = "all values from 0 to self.len are in bounds"
             )]
             // SAFETY:
-            // All values from 0 to self.len are initialized.
+            // All values from 0 to self.len are initialized
             unsafe { self.data[i].assume_init() }.hash(state);
         }
     }
@@ -508,7 +508,7 @@ impl<T: Copy + BorshSerialize, const MAX: usize> BorshSerialize for StackVec<T, 
                 reason = "all values from 0 to self.len are in bounds"
             )]
             // SAFETY:
-            // All values from 0 to self.len are initialized.
+            // All values from 0 to self.len are initialized
             unsafe { self.data[i].assume_init() }.serialize(writer)?;
         }
         Ok(())
@@ -558,7 +558,7 @@ impl<T: Copy, const MAX: usize> Iterator for StackVecIter<'_, T, MAX> {
                 reason = "all values from 0 to self.vec.len are in bounds"
             )]
             // SAFETY:
-            // All values from 0 to self.vec.len are initialized.
+            // All values from 0 to self.vec.len are initialized
             let value = unsafe { self.vec.data[self.index as usize].assume_init() };
             self.index = self.index.saturating_add(1);
             value
@@ -588,7 +588,7 @@ impl<T: Copy, const MAX: usize> Iterator for StackVecIntoIter<T, MAX> {
                 reason = "all values from 0 to self.vec.len are in bounds"
             )]
             // SAFETY:
-            // All values from 0 to self.vec.len are initialized.
+            // All values from 0 to self.vec.len are initialized
             let value = unsafe { self.data[self.index as usize].assume_init() };
             self.index = self.index.saturating_add(1);
             value

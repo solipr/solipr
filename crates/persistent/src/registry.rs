@@ -50,7 +50,7 @@ impl Registry for PersistentRegistry {
             fs::create_dir_all(&self.folder)?;
         }
 
-        // Create a temporary file to store the content in.
+        // Create a temporary file to store the content in
         let temp_file_path = self.folder.join(uuid::Uuid::now_v7().to_string());
         let mut temp_file = File::create(&temp_file_path)?;
 
