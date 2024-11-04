@@ -1,13 +1,19 @@
 //! Implement a representation of a file in the repository in a linear way.
 
 use core::mem::discriminant;
+use std::collections::{BTreeSet, HashMap, HashSet, VecDeque};
 use std::hash::{Hash, Hasher};
 use std::io::{self, BufRead, BufReader, Read, Write};
 
+use petgraph::Direction;
+use petgraph::algo::tarjan_scc;
+use petgraph::prelude::DiGraphMap;
+use petgraph::visit::Visitable;
 use similar::{Algorithm, DiffOp};
 use thiserror::Error;
 use uuid::Uuid;
 
+use super::Repository;
 use crate::change::LineId;
 use crate::registry::{ContentHash, Registry};
 
@@ -259,6 +265,102 @@ impl LinearFile {
                     ) {
                         *id = *old_id;
                     }
+                }
+            }
+        }
+    }
+
+    /// Generate a [`LinearFile`] from the given graph.
+    pub fn from_graph<'manager, Repo: Repository<'manager>>(graph: DiGraphMap<LineId, ()>) {
+        /// A data structure to store a line or cycle in the graph.
+        #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+        enum CycleLine {
+            /// A cycle of lines.
+            Cycle(Uuid),
+
+            /// A line.
+            Line(LineId),
+        }
+
+        // A data structure to store a line or a conflict.
+        enum ConflictLine {
+            /// A conflict.
+            Conflict(DiGraphMap<CycleLine, ()>),
+
+            /// A line.
+            Line(CycleLine),
+        }
+
+        // Make an acyclic graph from the graph
+        let sccs = tarjan_scc(&graph);
+        let mut acyclic_graph =
+            DiGraphMap::<CycleLine, ()>::with_capacity(sccs.len(), graph.edge_count());
+        let mut mapping = HashMap::with_capacity(graph.node_count());
+        for lines in sccs {
+            let cycle_line_id = if lines.len() == 1 {
+                #[expect(clippy::indexing_slicing, reason = "the length is checked to be 1")]
+                CycleLine::Line(lines[0])
+            } else {
+                CycleLine::Cycle(LineId::combine(lines.iter().copied()))
+            };
+            acyclic_graph.add_node(cycle_line_id);
+            for node in lines {
+                mapping.insert(node, cycle_line_id);
+            }
+        }
+
+        #[expect(
+            clippy::indexing_slicing,
+            reason = "first node is always present in a file graph"
+        )]
+        let first_id = mapping[&LineId::FIRST];
+        for (line_a, line_b, ()) in graph.all_edges() {
+            #[expect(clippy::indexing_slicing, reason = "all nodes are in the mapping")]
+            acyclic_graph.add_edge(mapping[&line_a], mapping[&line_b], ());
+        }
+        drop(mapping);
+
+        // Detect conflicts
+        let mut lines = Vec::with_capacity(acyclic_graph.node_count());
+        let mut visited_lines = HashSet::with_capacity(acyclic_graph.node_count());
+        let mut current_conflict = Vec::new();
+        let mut current = VecDeque::from_iter([first_id]);
+        'outer: while let Some(node) = current.pop_front() {
+            // Only visit the node if all parents have been visited
+            for parent in acyclic_graph.neighbors_directed(node, Direction::Incoming) {
+                if !current.contains(&parent) && !visited_lines.contains(&parent) {
+                    current.push_back(parent);
+                    continue 'outer;
+                }
+            }
+
+            // If we are at the end of a conflict or a simple line
+            if current.is_empty() {
+                if !current_conflict.is_empty() {
+                    let mut conflict =
+                        DiGraphMap::with_capacity(current_conflict.len(), current_conflict.len());
+                    for line in current_conflict.iter().copied() {
+                        conflict.add_node(line);
+                        for child in acyclic_graph.neighbors_directed(line, Direction::Outgoing) {
+                            if current_conflict.contains(&child) {
+                                conflict.add_edge(line, child, ());
+                            }
+                        }
+                        visited_lines.insert(line);
+                    }
+                    lines.push(ConflictLine::Conflict(conflict));
+                    current_conflict.clear();
+                }
+                lines.push(ConflictLine::Line(node));
+                visited_lines.insert(node);
+            } else {
+                current_conflict.push(node);
+            }
+
+            // Visit the children
+            for child in acyclic_graph.neighbors_directed(node, Direction::Outgoing) {
+                if !current.contains(&child) {
+                    current.push_back(child);
                 }
             }
         }
