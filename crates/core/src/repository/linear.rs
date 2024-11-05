@@ -4,6 +4,7 @@ use core::mem::discriminant;
 use std::collections::{BTreeSet, HashMap, HashSet, VecDeque};
 use std::hash::{Hash, Hasher};
 use std::io::{self, BufRead, BufReader, Read, Write};
+use std::ops::Deref;
 
 use petgraph::Direction;
 use petgraph::algo::tarjan_scc;
@@ -14,6 +15,7 @@ use thiserror::Error;
 use uuid::Uuid;
 
 use super::Repository;
+use super::graph::FileGraph;
 use crate::change::LineId;
 use crate::registry::{ContentHash, Registry};
 
@@ -272,11 +274,9 @@ impl LinearFile {
 
     /// Generate a [`LinearFile`] from the given graph.
     #[must_use]
-    pub fn from_graph<'manager, Repo: Repository<'manager>>(
-        graph: &DiGraphMap<LineId, ()>,
-    ) -> Vec<ConflictLine> {
+    pub fn from_graph(graph: &FileGraph) -> TempLinearFile {
         // Make an acyclic graph from the graph
-        let sccs = tarjan_scc(graph);
+        let sccs = tarjan_scc(&**graph);
         let mut acyclic_graph =
             DiGraphMap::<CycleLine, ()>::with_capacity(sccs.len(), graph.edge_count());
         let mut mapping = HashMap::with_capacity(graph.node_count());
@@ -350,9 +350,12 @@ impl LinearFile {
         }
 
         // Return the generated file
-        lines
+        TempLinearFile(lines)
     }
 }
+
+/// A temporary representation of a file in the repository in a linear way.
+pub struct TempLinearFile(Vec<ConflictLine>);
 
 /// A data structure to store a line or cycle in the graph.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
