@@ -271,28 +271,12 @@ impl LinearFile {
     }
 
     /// Generate a [`LinearFile`] from the given graph.
-    pub fn from_graph<'manager, Repo: Repository<'manager>>(graph: DiGraphMap<LineId, ()>) {
-        /// A data structure to store a line or cycle in the graph.
-        #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-        enum CycleLine {
-            /// A cycle of lines.
-            Cycle(Uuid),
-
-            /// A line.
-            Line(LineId),
-        }
-
-        // A data structure to store a line or a conflict.
-        enum ConflictLine {
-            /// A conflict.
-            Conflict(DiGraphMap<CycleLine, ()>),
-
-            /// A line.
-            Line(CycleLine),
-        }
-
+    #[must_use]
+    pub fn from_graph<'manager, Repo: Repository<'manager>>(
+        graph: &DiGraphMap<LineId, ()>,
+    ) -> Vec<ConflictLine> {
         // Make an acyclic graph from the graph
-        let sccs = tarjan_scc(&graph);
+        let sccs = tarjan_scc(graph);
         let mut acyclic_graph =
             DiGraphMap::<CycleLine, ()>::with_capacity(sccs.len(), graph.edge_count());
         let mut mapping = HashMap::with_capacity(graph.node_count());
@@ -364,7 +348,29 @@ impl LinearFile {
                 }
             }
         }
+
+        // Return the generated file
+        lines
     }
+}
+
+/// A data structure to store a line or cycle in the graph.
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum CycleLine {
+    /// A cycle of lines.
+    Cycle(Uuid),
+
+    /// A line.
+    Line(LineId),
+}
+
+/// A data structure to store a line or a conflict.
+pub enum ConflictLine {
+    /// A conflict.
+    Conflict(DiGraphMap<CycleLine, ()>),
+
+    /// A line.
+    Line(CycleLine),
 }
 
 /// A line in a [`LinearFile`].
