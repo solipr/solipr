@@ -376,6 +376,42 @@ pub enum ConflictLine {
     Line(CycleLine),
 }
 
+/// A recursive function used by [`conflict_paths`] to get all the possible
+/// paths in a conflict.
+fn visit_path(graph: &DiGraphMap<CycleLine, ()>, paths: &mut Vec<Vec<CycleLine>>, node: CycleLine) {
+    let path_index = paths.len() - 1;
+    paths[path_index].push(node);
+    let path_len = paths[path_index].len();
+    for (i, child) in graph
+        .neighbors_directed(node, Direction::Outgoing)
+        .enumerate()
+    {
+        if i != 0 {
+            paths.push(paths[path_index][..path_len].to_vec());
+        }
+        visit_path(graph, paths, child);
+    }
+}
+
+/// Get all the possible paths in a conflict.
+fn conflict_paths(graph: &DiGraphMap<CycleLine, ()>) -> Vec<Vec<CycleLine>> {
+    let mut paths = Vec::new();
+    let starting_nodes = graph
+        .nodes()
+        .filter(|node| {
+            graph
+                .neighbors_directed(*node, Direction::Incoming)
+                .next()
+                .is_none()
+        })
+        .collect::<Vec<_>>();
+    for node in starting_nodes {
+        paths.push(Vec::new());
+        visit_path(graph, &mut paths, node);
+    }
+    paths
+}
+
 /// A line in a [`LinearFile`].
 #[derive(Debug, Clone, Eq, PartialOrd, Ord)]
 pub enum LinearFileLine {
