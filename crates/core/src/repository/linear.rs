@@ -272,7 +272,7 @@ impl LinearFile {
         }
     }
 
-    /// Generate a [`LinearFile`] from the given graph.
+    /// Generate a [`TempLinearFile`] from the given graph.
     #[must_use]
     pub fn from_graph(graph: &FileGraph) -> TempLinearFile {
         // Make an acyclic graph from the graph
@@ -292,7 +292,6 @@ impl LinearFile {
                 mapping.insert(node, cycle_line_id);
             }
         }
-
         #[expect(
             clippy::indexing_slicing,
             reason = "first node is always present in a file graph"
@@ -379,14 +378,30 @@ pub enum ConflictLine {
 /// A recursive function used by [`conflict_paths`] to get all the possible
 /// paths in a conflict.
 fn visit_path(graph: &DiGraphMap<CycleLine, ()>, paths: &mut Vec<Vec<CycleLine>>, node: CycleLine) {
+    #[expect(
+        clippy::arithmetic_side_effects,
+        reason = "there is at least one element in paths"
+    )]
     let path_index = paths.len() - 1;
+    #[expect(
+        clippy::indexing_slicing,
+        reason = "there is at least one element in paths"
+    )]
     paths[path_index].push(node);
+    #[expect(
+        clippy::indexing_slicing,
+        reason = "there is at least one element in paths"
+    )]
     let path_len = paths[path_index].len();
     for (i, child) in graph
         .neighbors_directed(node, Direction::Outgoing)
         .enumerate()
     {
         if i != 0 {
+            #[expect(
+                clippy::indexing_slicing,
+                reason = "there is at least one element in paths and no element are removed"
+            )]
             paths.push(paths[path_index][..path_len].to_vec());
         }
         visit_path(graph, paths, child);
