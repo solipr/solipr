@@ -1,6 +1,7 @@
 //! Implement a trait extention that add function to work with file graphs.
 
 use std::collections::{BTreeSet, HashSet};
+use std::ops::Deref;
 
 use petgraph::prelude::{DiGraphMap, Direction};
 
@@ -8,6 +9,17 @@ use super::Repository;
 use super::diff::DiffExt;
 use super::head::HeadExt;
 use crate::change::{Change, ChangeContent, FileId, LineId};
+
+/// A graph that represent a file in a repository.
+pub struct FileGraph(DiGraphMap<LineId, ()>);
+
+impl Deref for FileGraph {
+    type Target = DiGraphMap<LineId, ()>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
 
 /// A trait extention that add function to work with file graphs.
 pub trait GraphExt<'manager>: Repository<'manager> + HeadExt<'manager> + DiffExt<'manager> {
@@ -28,7 +40,7 @@ pub trait GraphExt<'manager>: Repository<'manager> + HeadExt<'manager> + DiffExt
     ///
     /// An error will be returned if there was an error while doing the
     /// operation.
-    fn file_graph(&self, file_id: FileId) -> Result<DiGraphMap<LineId, ()>, Self::Error> {
+    fn file_graph(&self, file_id: FileId) -> Result<FileGraph, Self::Error> {
         let mut current = BTreeSet::from_iter(self.existing_lines(file_id)?);
         current.extend([LineId::FIRST, LineId::LAST]);
         let mut graph = DiGraphMap::with_capacity(current.len(), current.len());
@@ -46,7 +58,7 @@ pub trait GraphExt<'manager>: Repository<'manager> + HeadExt<'manager> + DiffExt
                 graph.add_edge(line_id, child, ());
             }
         }
-        Ok(graph)
+        Ok(FileGraph(graph))
     }
 
     /// Returns a list of [Change] that transform a file of the [Repository]
@@ -64,7 +76,7 @@ pub trait GraphExt<'manager>: Repository<'manager> + HeadExt<'manager> + DiffExt
     fn file_graph_diff(
         &self,
         file_id: FileId,
-        graph: &DiGraphMap<LineId, ()>,
+        graph: &FileGraph,
     ) -> Result<HashSet<Change>, Self::Error> {
         let current_graph = self.file_graph(file_id)?;
         let mut result = HashSet::new();
