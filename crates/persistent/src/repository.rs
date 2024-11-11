@@ -206,7 +206,7 @@ impl<'manager> Repository<'manager> for PersistentRepository<'manager> {
             )));
         };
 
-        // Insert the change.
+        // Insert the change
         let change_hash = change.calculate_hash();
         tx.insert(
             &self.manager.changes,
@@ -214,18 +214,18 @@ impl<'manager> Repository<'manager> for PersistentRepository<'manager> {
             borsh::to_vec(&change)?,
         );
 
-        // Update the reversed heads.
+        // Update the reversed heads
         for replaced_hash in change.replace {
             let serialized_key = borsh::to_vec(&(self.id, replaced_hash))?;
 
-            // Get all changes that replace this change.
+            // Get all changes that replace this change
             let reverse_heads = tx.get(&self.manager.reverse_heads, &serialized_key)?;
             let mut reverse_heads = match reverse_heads {
                 Some(reverse_heads) => borsh::from_slice(&reverse_heads)?,
                 None => HashSet::new(),
             };
 
-            // Update the reversed heads by adding this change.
+            // Update the reversed heads by adding this change
             reverse_heads.insert(change_hash);
             tx.insert(
                 &self.manager.reverse_heads,
@@ -234,7 +234,7 @@ impl<'manager> Repository<'manager> for PersistentRepository<'manager> {
             );
         }
 
-        // Update the heads.
+        // Update the heads
         let single_key = borsh::to_vec(&(self.id, change.single_id()))?;
         let heads = tx.get(&self.manager.heads, &single_key)?;
         let mut heads = match heads {
@@ -265,7 +265,7 @@ impl<'manager> Repository<'manager> for PersistentRepository<'manager> {
             self.update_line(file_id, line_id)?;
         }
 
-        // Return the change hash.
+        // Return the change hash
         Ok(change_hash)
     }
 
@@ -277,7 +277,7 @@ impl<'manager> Repository<'manager> for PersistentRepository<'manager> {
             )));
         };
 
-        // Remove the change.
+        // Remove the change
         let Some(change) = tx.take(
             &self.manager.changes,
             borsh::to_vec(&(self.id, change_hash))?,
@@ -287,7 +287,7 @@ impl<'manager> Repository<'manager> for PersistentRepository<'manager> {
         };
         let change: Change = borsh::from_slice(&change)?;
 
-        // Update the heads.
+        // Update the heads
         let single_key = borsh::to_vec(&(self.id, change.single_id()))?;
         let heads = tx.get(&self.manager.heads, &single_key)?;
         let mut heads = match heads {
@@ -298,17 +298,17 @@ impl<'manager> Repository<'manager> for PersistentRepository<'manager> {
         for replaced_hash in change.replace {
             let serialized_key = borsh::to_vec(&(self.id, replaced_hash))?;
 
-            // Verify that the replaced change is replaced ONLY by this change.
+            // Verify that the replaced change is replaced ONLY by this change
             let Some(reverse_heads) = tx.get(&self.manager.reverse_heads, &serialized_key)? else {
                 continue;
             };
             let mut reverse_heads: HashSet<ChangeHash> = borsh::from_slice(&reverse_heads)?;
             if reverse_heads.len() == 1 && reverse_heads.contains(&change_hash) {
-                // Add the replaced change to the heads.
+                // Add the replaced change to the heads
                 heads.insert(replaced_hash);
             }
 
-            // Update the replaced change by removing this change.
+            // Update the replaced change by removing this change
             reverse_heads.remove(&change_hash);
             if reverse_heads.is_empty() {
                 tx.remove(&self.manager.reverse_heads, &serialized_key);
@@ -329,7 +329,7 @@ impl<'manager> Repository<'manager> for PersistentRepository<'manager> {
             self.update_line(file_id, line_id)?;
         }
 
-        // Return success.
+        // Return success
         Ok(())
     }
 
