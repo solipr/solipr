@@ -17,7 +17,7 @@
 ---
 
 ## Introduction
-Solipr is a purely Rust-based Version Control System.
+Solipr is a purely Rust-based Peer to Peer Version Control System.
 
 ## How does it work?
 
