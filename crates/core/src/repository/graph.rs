@@ -42,7 +42,6 @@ pub trait GraphExt<'manager>: Repository<'manager> + HeadExt<'manager> + DiffExt
     /// operation.
     fn file_graph(&self, file_id: FileId) -> Result<FileGraph, Self::Error> {
         let mut current = BTreeSet::from_iter(self.existing_lines(file_id)?);
-        current.extend([LineId::FIRST, LineId::LAST]);
         let mut graph = DiGraphMap::with_capacity(current.len(), current.len());
         while let Some(line_id) = current.pop_first() {
             for parent in self.line_parent(file_id, line_id)? {

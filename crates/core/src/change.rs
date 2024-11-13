@@ -82,23 +82,11 @@ impl Deref for FileId {
 pub struct LineId(Uuid);
 
 impl LineId {
-    /// The identifier of the first line in a file.
-    ///
-    /// This is line is not a real line, it is used to indicate the beginning of
-    /// the file.
-    pub const FIRST: Self = Self(Uuid::nil());
-
-    /// The identifier of the last line in a file.
-    ///
-    /// This is line is not a real line, it is used to indicate the end of the
-    /// file.
-    pub const LAST: Self = Self(Uuid::max());
-
     /// The identifier of an unknown line in a file.
     ///
     /// This is the identifier used for each line read from a file before using
     /// the diff algorithm to detect changes.
-    pub const UNKNOWN: Self = Self(Uuid::from_bytes([1; 16]));
+    pub const UNKNOWN: Self = Self(Uuid::nil());
 
     /// Combine multiple lines into a unique identifier.
     pub fn combine(lines: impl IntoIterator<Item = Self>) -> Uuid {
