@@ -3,8 +3,6 @@
 
 use std::collections::HashSet;
 
-use solipr_stack::StackVec;
-
 use super::Repository;
 use crate::change::{Change, ChangeContent, FileId, LineId, SingleId};
 use crate::registry::ContentHash;

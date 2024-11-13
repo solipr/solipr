@@ -1,6 +1,5 @@
-use std::collections::{BTreeSet, HashMap, HashSet, VecDeque};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::error::Error;
-use std::ops::Deref;
 
 use petgraph::Direction;
 use petgraph::algo::condensation;
@@ -9,7 +8,6 @@ use petgraph::graph::{DiGraph, NodeIndex};
 use petgraph::prelude::DiGraphMap;
 use solipr_stack::StackVec;
 use thiserror::Error;
-use uuid::Uuid;
 
 use super::Repository;
 use super::head::HeadExt;
@@ -264,6 +262,7 @@ pub trait GraphExt<'manager>: Repository<'manager> + HeadExt<'manager> + Sized {
             lines.entry(line.0).or_default().insert(line.1);
         }
 
+        let current_graph = render_graph(self, file_id)?;
         let mut current_lines: HashMap<LineId, HashSet<ContentHash>> =
             HashMap::with_capacity(current_graph.node_count());
         for line in current_graph.nodes() {

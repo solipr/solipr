@@ -14,7 +14,6 @@ use uuid::Uuid;
 
 use crate::change::{Change, ChangeHash, FileId, LineId, SingleId};
 
-pub mod diff;
 pub mod file;
 pub mod head;
 
