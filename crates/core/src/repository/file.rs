@@ -14,35 +14,29 @@ use super::head::HeadExt;
 use crate::change::{Change, ChangeContent, FileId, LineId};
 use crate::registry::ContentHash;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct FileLine(LineId, ContentHash);
-pub type CycleLine = Vec<FileLine>;
-pub type ConflictPath = Vec<CycleLine>;
-pub type Conflict = Vec<ConflictPath>;
-
-pub struct File(Vec<Conflict>);
+type TempFileLine = (LineId, ContentHash);
+type CycleLine = Vec<TempFileLine>;
+type ConflictPath = Vec<CycleLine>;
+type Conflict = Vec<ConflictPath>;
+type TempFile = Vec<Conflict>;
 
 fn render_graph<'manager, Repo: Repository<'manager>>(
     repository: &Repo,
     file_id: FileId,
-) -> Result<DiGraphMap<FileLine, ()>, Repo::Error> {
+) -> Result<DiGraphMap<TempFileLine, ()>, Repo::Error> {
     let mut current = VecDeque::from_iter(repository.existing_lines(file_id)?);
     let mut visited = HashSet::with_capacity(current.len());
     let mut graph = DiGraphMap::with_capacity(current.len(), current.len());
     while let Some(line_id) = current.pop_front() {
         visited.insert(line_id);
         for content in repository.line_content(file_id, line_id)? {
-            graph.add_node(FileLine(line_id, content));
+            graph.add_node((line_id, content));
             for parent in repository.line_parent(file_id, line_id)? {
                 if !visited.contains(&parent) && !current.contains(&parent) {
                     current.push_back(parent);
                 }
                 for other_content in repository.line_content(file_id, parent)? {
-                    graph.add_edge(
-                        FileLine(parent, other_content),
-                        FileLine(line_id, content),
-                        (),
-                    );
+                    graph.add_edge((parent, other_content), (line_id, content), ());
                 }
             }
             for child in repository.line_child(file_id, line_id)? {
@@ -50,11 +44,7 @@ fn render_graph<'manager, Repo: Repository<'manager>>(
                     current.push_back(child);
                 }
                 for other_content in repository.line_content(file_id, child)? {
-                    graph.add_edge(
-                        FileLine(line_id, content),
-                        FileLine(child, other_content),
-                        (),
-                    );
+                    graph.add_edge((line_id, content), (child, other_content), ());
                 }
             }
         }
@@ -62,7 +52,7 @@ fn render_graph<'manager, Repo: Repository<'manager>>(
     Ok(graph)
 }
 
-fn make_linear(graph: &DiGraph<Vec<FileLine>, ()>) -> Vec<Vec<NodeIndex>> {
+fn make_linear(graph: &DiGraph<Vec<TempFileLine>, ()>) -> Vec<Vec<NodeIndex>> {
     let mut lines = Vec::with_capacity(graph.node_count());
     let mut visited = HashSet::with_capacity(graph.node_count());
     let mut current = graph
@@ -100,8 +90,11 @@ fn make_linear(graph: &DiGraph<Vec<FileLine>, ()>) -> Vec<Vec<NodeIndex>> {
     lines
 }
 
-fn flatten_conflict(graph: &DiGraph<Vec<FileLine>, ()>, lines: &Vec<Vec<NodeIndex>>) -> File {
-    let mut file = File(Vec::with_capacity(lines.len()));
+fn flatten_conflict(
+    graph: &DiGraph<Vec<TempFileLine>, ()>,
+    lines: &Vec<Vec<NodeIndex>>,
+) -> TempFile {
+    let mut file = Vec::with_capacity(lines.len());
     for line in lines {
         let mut paths = Conflict::new();
         let mut to_visit = line
@@ -140,15 +133,15 @@ fn flatten_conflict(graph: &DiGraph<Vec<FileLine>, ()>, lines: &Vec<Vec<NodeInde
                 to_visit.push_back(path);
             }
         }
-        file.0.push(paths);
+        file.push(paths);
     }
     file
 }
 
-fn unflatten_conflicts(file: &File) -> DiGraph<&Vec<FileLine>, ()> {
-    let mut graph = DiGraph::with_capacity(file.0.len(), file.0.len());
+fn unflatten_conflicts(file: &TempFile) -> DiGraph<&Vec<TempFileLine>, ()> {
+    let mut graph = DiGraph::with_capacity(file.len(), file.len());
     let mut mapping = HashMap::new();
-    for conflict_paths in file.0.iter() {
+    for conflict_paths in file.iter() {
         for path in conflict_paths.iter() {
             for line in path.iter() {
                 mapping.entry(line).or_insert_with(|| graph.add_node(line));
@@ -156,7 +149,7 @@ fn unflatten_conflicts(file: &File) -> DiGraph<&Vec<FileLine>, ()> {
         }
     }
     let mut last_nodes = HashSet::new();
-    for conflict_paths in file.0.iter() {
+    for conflict_paths in file.iter() {
         let mut new_last_nodes = HashSet::with_capacity(conflict_paths.len());
         for path in conflict_paths.iter() {
             let mut last_nodes = last_nodes.clone();
@@ -186,8 +179,8 @@ pub enum FileDiffError<RepoError: Error> {
 }
 
 fn remove_cycles<RepoError: Error>(
-    graph: DiGraph<&Vec<FileLine>, ()>,
-) -> Result<DiGraphMap<FileLine, ()>, FileDiffError<RepoError>> {
+    graph: DiGraph<&Vec<TempFileLine>, ()>,
+) -> Result<DiGraphMap<TempFileLine, ()>, FileDiffError<RepoError>> {
     let mut new_graph = DiGraphMap::with_capacity(graph.node_count(), graph.node_count());
     for i in graph.node_indices() {
         let lines = graph[i];
@@ -235,7 +228,7 @@ fn svg_diff<'manager, Repo: Repository<'manager>>(
 }
 
 pub trait GraphExt<'manager>: Repository<'manager> + HeadExt<'manager> + Sized {
-    fn render(&self, file_id: FileId) -> Result<File, Self::Error> {
+    fn render(&self, file_id: FileId) -> Result<TempFile, Self::Error> {
         let graph = render_graph(self, file_id)?;
         let graph = condensation(graph.into_graph::<DefaultIx>(), true);
         let lines = make_linear(&graph);
@@ -245,7 +238,7 @@ pub trait GraphExt<'manager>: Repository<'manager> + HeadExt<'manager> + Sized {
     fn file_diff(
         &self,
         file_id: FileId,
-        target: &File,
+        target: &TempFile,
     ) -> Result<HashSet<Change>, FileDiffError<Self::Error>> {
         let current_graph = render_graph(self, file_id)?;
         let current_acyclic = condensation(current_graph.into_graph::<DefaultIx>(), true);
@@ -313,7 +306,7 @@ pub trait GraphExt<'manager>: Repository<'manager> + HeadExt<'manager> + Sized {
                 .iter()
                 .flat_map(|content| {
                     current_graph
-                        .neighbors_directed(FileLine(line_id, *content), Direction::Incoming)
+                        .neighbors_directed((line_id, *content), Direction::Incoming)
                         .map(|parent| parent.0)
                 })
                 .collect::<HashSet<_>>();
@@ -321,7 +314,7 @@ pub trait GraphExt<'manager>: Repository<'manager> + HeadExt<'manager> + Sized {
                 .iter()
                 .flat_map(|content| {
                     graph
-                        .neighbors_directed(FileLine(line_id, *content), Direction::Incoming)
+                        .neighbors_directed((line_id, *content), Direction::Incoming)
                         .map(|parent| parent.0)
                 })
                 .collect::<HashSet<_>>();
@@ -340,7 +333,7 @@ pub trait GraphExt<'manager>: Repository<'manager> + HeadExt<'manager> + Sized {
                 .iter()
                 .flat_map(|content| {
                     current_graph
-                        .neighbors_directed(FileLine(line_id, *content), Direction::Outgoing)
+                        .neighbors_directed((line_id, *content), Direction::Outgoing)
                         .map(|child| child.0)
                 })
                 .collect::<HashSet<_>>();
@@ -348,7 +341,7 @@ pub trait GraphExt<'manager>: Repository<'manager> + HeadExt<'manager> + Sized {
                 .iter()
                 .flat_map(|content| {
                     graph
-                        .neighbors_directed(FileLine(line_id, *content), Direction::Outgoing)
+                        .neighbors_directed((line_id, *content), Direction::Outgoing)
                         .map(|child| child.0)
                 })
                 .collect::<HashSet<_>>();
