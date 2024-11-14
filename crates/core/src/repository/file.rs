@@ -1,5 +1,9 @@
+use core::mem::discriminant;
+use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::error::Error;
+use std::hash::{Hash, Hasher};
+use std::io::{BufRead, BufReader, Read};
 
 use petgraph::Direction;
 use petgraph::algo::condensation;
@@ -12,7 +16,7 @@ use thiserror::Error;
 use super::Repository;
 use super::head::HeadExt;
 use crate::change::{Change, ChangeContent, FileId, LineId};
-use crate::registry::ContentHash;
+use crate::registry::{self, ContentHash, Registry};
 
 type TempFileLine = (LineId, ContentHash);
 type CycleLine = Vec<TempFileLine>;
@@ -170,7 +174,10 @@ fn unflatten_conflicts(file: &TempFile) -> DiGraph<&Vec<TempFileLine>, ()> {
 }
 
 #[derive(Debug, Error)]
-pub enum FileDiffError<RepoError: Error> {
+pub enum FileDiffError<RegError: Error, RepoError: Error> {
+    #[error("registry error: {0}")]
+    Registry(RegError),
+
     #[error("repository error: {0}")]
     Repository(#[from] RepoError),
 
@@ -178,9 +185,9 @@ pub enum FileDiffError<RepoError: Error> {
     Cycle,
 }
 
-fn remove_cycles<RepoError: Error>(
+fn remove_cycles<RegError: Error, RepoError: Error>(
     graph: DiGraph<&Vec<TempFileLine>, ()>,
-) -> Result<DiGraphMap<TempFileLine, ()>, FileDiffError<RepoError>> {
+) -> Result<DiGraphMap<TempFileLine, ()>, FileDiffError<RegError, RepoError>> {
     let mut new_graph = DiGraphMap::with_capacity(graph.node_count(), graph.node_count());
     for i in graph.node_indices() {
         let lines = graph[i];
@@ -235,19 +242,17 @@ pub trait GraphExt<'manager>: Repository<'manager> + HeadExt<'manager> + Sized {
         Ok(flatten_conflict(&graph, &lines))
     }
 
-    fn file_diff(
+    fn file_diff<Reg: Registry>(
         &self,
+        registry: &Reg,
         file_id: FileId,
-        target: &TempFile,
-    ) -> Result<HashSet<Change>, FileDiffError<Self::Error>> {
-        let current_graph = render_graph(self, file_id)?;
-        let current_acyclic = condensation(current_graph.into_graph::<DefaultIx>(), true);
-        let current_lines = make_linear(&current_acyclic);
-        let current_file = flatten_conflict(&current_acyclic, &current_lines);
-
-        // TODO: Populate IDS
-
-        let graph = unflatten_conflicts(target);
+        target: &File,
+    ) -> Result<HashSet<Change>, FileDiffError<Reg::Error, Self::Error>> {
+        // Convert back the target file to a graph
+        let target = target
+            .to_temp_file(registry)
+            .map_err(FileDiffError::Registry)?;
+        let graph = unflatten_conflicts(&target);
         let graph = remove_cycles(graph)?;
         let mut lines: HashMap<LineId, HashSet<ContentHash>> =
             HashMap::with_capacity(graph.node_count());
@@ -255,6 +260,7 @@ pub trait GraphExt<'manager>: Repository<'manager> + HeadExt<'manager> + Sized {
             lines.entry(line.0).or_default().insert(line.1);
         }
 
+        // Generate the graph of the file in the repository
         let current_graph = render_graph(self, file_id)?;
         let mut current_lines: HashMap<LineId, HashSet<ContentHash>> =
             HashMap::with_capacity(current_graph.node_count());
@@ -262,6 +268,7 @@ pub trait GraphExt<'manager>: Repository<'manager> + HeadExt<'manager> + Sized {
             current_lines.entry(line.0).or_default().insert(line.1);
         }
 
+        // Generate all changes needed to go from the current graph to the target
         let mut changes = HashSet::new();
 
         // Delete all the lines that are in the repository but not in the graph
@@ -356,6 +363,212 @@ pub trait GraphExt<'manager>: Repository<'manager> + HeadExt<'manager> + Sized {
             }
         }
 
+        // Returns the changes
         Ok(changes)
+    }
+}
+
+#[derive(Clone, Copy, Eq)]
+pub enum FileLine {
+    Line(LineId, ContentHash),
+    CycleStart,
+    CycleEnd,
+    ConflictStart,
+    ConflictSeparator,
+    ConflictEnd,
+}
+
+impl PartialEq for FileLine {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Line(_, a), Self::Line(_, b)) => a == b,
+            _ => discriminant(self) == discriminant(other),
+        }
+    }
+}
+
+impl Hash for FileLine {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        discriminant(self).hash(state);
+        if let Self::Line(_, content) = self {
+            content.hash(state)
+        }
+    }
+}
+
+pub struct File(Vec<FileLine>);
+
+impl File {
+    const CONFLICT_START_STRING: &'static str = "<<<<<<< CONFLICT";
+    const CONFLICT_SEPARATOR_STRING: &'static str = "=======";
+    const CONFLICT_END_STRING: &'static str = ">>>>>>> CONFLICT";
+    const CYCLE_START_STRING: &'static str = "<<<<<<< CYCLE";
+    const CYCLE_END_STRING: &'static str = ">>>>>>> CYCLE";
+
+    /// A function that add a line to the file.
+    ///
+    /// This is used to reduce code repetition in the [Self::to_temp_file]
+    /// function.
+    fn insert_line(
+        file: &mut TempFile,
+        conflict: &mut [ConflictPath],
+        line_id: LineId,
+        content: ContentHash,
+    ) {
+        if !conflict.is_empty() {
+            conflict.last_mut().unwrap().push(vec![(line_id, content)]);
+        } else {
+            file.push(vec![vec![vec![(line_id, content)]]]);
+        }
+    }
+
+    fn to_temp_file<Reg: Registry>(&self, registry: &Reg) -> Result<TempFile, Reg::Error> {
+        let mut file = Vec::with_capacity(self.0.len());
+        let mut conflict: Vec<ConflictPath> = Vec::new();
+
+        // Insert all the lines
+        for line in &self.0 {
+            match line {
+                FileLine::Line(line_id, content) => {
+                    Self::insert_line(&mut file, &mut conflict, *line_id, *content)
+                }
+                FileLine::ConflictStart => {
+                    if !conflict.is_empty() {
+                        Self::insert_line(
+                            &mut file,
+                            &mut conflict,
+                            LineId::unique(),
+                            registry.write(Self::CONFLICT_START_STRING.as_bytes())?,
+                        );
+                    } else {
+                        conflict.push(Vec::new());
+                    }
+                }
+                FileLine::ConflictSeparator => {
+                    if conflict.is_empty() {
+                        Self::insert_line(
+                            &mut file,
+                            &mut conflict,
+                            LineId::unique(),
+                            registry.write(Self::CONFLICT_SEPARATOR_STRING.as_bytes())?,
+                        );
+                    } else {
+                        conflict.push(Vec::new());
+                    }
+                }
+                FileLine::ConflictEnd => {
+                    if conflict.is_empty() {
+                        Self::insert_line(
+                            &mut file,
+                            &mut conflict,
+                            LineId::unique(),
+                            registry.write(Self::CONFLICT_END_STRING.as_bytes())?,
+                        );
+                    } else {
+                        file.push(conflict);
+                        conflict = Vec::new();
+                    }
+                }
+                FileLine::CycleStart => {
+                    Self::insert_line(
+                        &mut file,
+                        &mut conflict,
+                        LineId::unique(),
+                        registry.write(Self::CYCLE_START_STRING.as_bytes())?,
+                    );
+                }
+                FileLine::CycleEnd => {
+                    Self::insert_line(
+                        &mut file,
+                        &mut conflict,
+                        LineId::unique(),
+                        registry.write(Self::CYCLE_END_STRING.as_bytes())?,
+                    );
+                }
+            }
+        }
+
+        // If a conflict is not finished we insert the line as normal lines
+        if !conflict.is_empty() {
+            Self::insert_line(
+                &mut file,
+                &mut conflict,
+                LineId::unique(),
+                registry.write(Self::CONFLICT_START_STRING.as_bytes())?,
+            );
+            for (i, path) in conflict.into_iter().enumerate() {
+                if i > 0 {
+                    Self::insert_line(
+                        &mut file,
+                        &mut [],
+                        LineId::unique(),
+                        registry.write(Self::CONFLICT_SEPARATOR_STRING.as_bytes())?,
+                    );
+                }
+                for line in path {
+                    let line = line[0];
+                    Self::insert_line(&mut file, &mut [], line.0, line.1);
+                }
+            }
+        }
+
+        // Returns the file
+        Ok(file)
+    }
+
+    pub fn parse<Reg: Registry>(registry: &Reg, reader: impl Read) -> Result<Self, Reg::Error> {
+        let mut file = Vec::new();
+        let mut reader = BufReader::new(reader);
+        let mut line = vec![1];
+        while !line.is_empty() {
+            line.clear();
+            reader.read_until(b'\n', &mut line).unwrap();
+            let content = line.strip_suffix(b"\n").unwrap_or(&line);
+            if content == Self::CONFLICT_START_STRING.as_bytes() {
+                file.push(FileLine::ConflictStart);
+            } else if content == Self::CONFLICT_SEPARATOR_STRING.as_bytes() {
+                file.push(FileLine::ConflictSeparator);
+            } else if content == Self::CONFLICT_END_STRING.as_bytes() {
+                file.push(FileLine::ConflictEnd);
+            } else if content == Self::CYCLE_START_STRING.as_bytes() {
+                file.push(FileLine::CycleStart);
+            } else if content == Self::CYCLE_END_STRING.as_bytes() {
+                file.push(FileLine::CycleEnd);
+            } else {
+                file.push(FileLine::Line(LineId::UNKNOWN, registry.write(content)?));
+            }
+        }
+        Ok(Self(file))
+    }
+}
+
+impl From<&TempFile> for File {
+    fn from(value: &TempFile) -> Self {
+        let mut file = Vec::with_capacity(value.iter().flatten().flatten().flatten().count());
+        for conflict_paths in value {
+            if conflict_paths.len() > 1 {
+                file.push(FileLine::ConflictStart);
+            }
+            for (i, path) in conflict_paths.iter().enumerate() {
+                if i > 0 {
+                    file.push(FileLine::ConflictSeparator);
+                }
+                for cycle in path {
+                    if cycle.len() > 1 {
+                        file.push(FileLine::CycleStart);
+                    }
+                    for line in cycle {
+                        file.push(FileLine::Line(line.0, line.1));
+                    }
+                    if cycle.len() > 1 {
+                        file.push(FileLine::CycleEnd);
+                    }
+                }
+            }
+            if conflict_paths.len() > 1 {
+                file.push(FileLine::ConflictEnd);
+            }
+        }
+        Self(file)
     }
 }
