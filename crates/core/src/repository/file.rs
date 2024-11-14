@@ -3,7 +3,7 @@ use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::error::Error;
 use std::hash::{Hash, Hasher};
-use std::io::{BufRead, BufReader, Read};
+use std::io::{self, BufRead, BufReader, Read, Write};
 
 use petgraph::Direction;
 use petgraph::algo::condensation;
@@ -396,6 +396,27 @@ impl Hash for FileLine {
     }
 }
 
+#[derive(Debug, Error)]
+pub enum FileParseError<RegError: Error> {
+    #[error("registry error: {0}")]
+    Registry(#[from] RegError),
+
+    #[error("io error: {0}")]
+    Io(io::Error),
+}
+
+#[derive(Debug, Error)]
+pub enum FileWriteError<RegError: Error> {
+    #[error("registry error: {0}")]
+    Registry(#[from] RegError),
+
+    #[error("a content is missing in the registry: {0}")]
+    Missing(ContentHash),
+
+    #[error("io error: {0}")]
+    Io(io::Error),
+}
+
 pub struct File(Vec<FileLine>);
 
 impl File {
@@ -516,13 +537,18 @@ impl File {
         Ok(file)
     }
 
-    pub fn parse<Reg: Registry>(registry: &Reg, reader: impl Read) -> Result<Self, Reg::Error> {
+    pub fn parse<Reg: Registry>(
+        registry: &Reg,
+        reader: impl Read,
+    ) -> Result<Self, FileParseError<Reg::Error>> {
         let mut file = Vec::new();
         let mut reader = BufReader::new(reader);
         let mut line = vec![1];
         while !line.is_empty() {
             line.clear();
-            reader.read_until(b'\n', &mut line).unwrap();
+            reader
+                .read_until(b'\n', &mut line)
+                .map_err(FileParseError::Io)?;
             let content = line.strip_suffix(b"\n").unwrap_or(&line);
             if content == Self::CONFLICT_START_STRING.as_bytes() {
                 file.push(FileLine::ConflictStart);
@@ -539,6 +565,52 @@ impl File {
             }
         }
         Ok(Self(file))
+    }
+
+    pub fn write<Reg: Registry>(
+        &self,
+        registry: &Reg,
+        mut writer: impl Write,
+    ) -> Result<(), FileWriteError<Reg::Error>> {
+        for (i, line) in self.0.iter().enumerate() {
+            if i > 0 {
+                writer.write_all(b"\n").map_err(FileWriteError::Io)?;
+            }
+            match line {
+                FileLine::Line(_, content) => {
+                    let mut content = registry
+                        .read(*content)?
+                        .ok_or(FileWriteError::Missing(*content))?;
+                    io::copy(&mut content, &mut writer).map_err(FileWriteError::Io)?;
+                }
+                FileLine::ConflictStart => {
+                    writer
+                        .write_all(Self::CONFLICT_START_STRING.as_bytes())
+                        .map_err(FileWriteError::Io)?;
+                }
+                FileLine::ConflictSeparator => {
+                    writer
+                        .write_all(Self::CONFLICT_SEPARATOR_STRING.as_bytes())
+                        .map_err(FileWriteError::Io)?;
+                }
+                FileLine::ConflictEnd => {
+                    writer
+                        .write_all(Self::CONFLICT_END_STRING.as_bytes())
+                        .map_err(FileWriteError::Io)?;
+                }
+                FileLine::CycleStart => {
+                    writer
+                        .write_all(Self::CYCLE_START_STRING.as_bytes())
+                        .map_err(FileWriteError::Io)?;
+                }
+                FileLine::CycleEnd => {
+                    writer
+                        .write_all(Self::CYCLE_END_STRING.as_bytes())
+                        .map_err(FileWriteError::Io)?;
+                }
+            }
+        }
+        Ok(())
     }
 }
 
