@@ -1,3 +1,6 @@
+//! This module defines a trait extention for a [Repository] to work with files
+//! in a repository.
+
 use core::mem::discriminant;
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::error::Error;
@@ -558,7 +561,7 @@ impl File {
         }
     }
 
-    /// Convert a [File] to a [TempFile].
+    /// Convert a [File] to a [`TempFile`].
     ///
     /// # Errors
     ///

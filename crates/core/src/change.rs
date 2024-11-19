@@ -88,7 +88,8 @@ impl LineId {
     /// the diff algorithm to detect changes.
     pub const UNKNOWN: Self = Self(Uuid::nil());
 
-    /// Generate a new unique [LineId].
+    /// Generate a new unique [`LineId`].
+    #[must_use]
     pub fn unique() -> Self {
         Self(Uuid::now_v7())
     }
