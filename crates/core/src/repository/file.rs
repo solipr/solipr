@@ -456,6 +456,8 @@ pub trait FileExt<'manager>: Repository<'manager> + HeadExt<'manager> + Sized {
     }
 }
 
+impl<'manager, Repo: Repository<'manager>> FileExt<'manager> for Repo {}
+
 /// A line in a [File].
 #[derive(Clone, Copy, Eq)]
 pub enum FileLine {

@@ -3,3 +3,4 @@
 #![cfg(test)]
 
 mod registry;
+mod repository;
