@@ -11,6 +11,7 @@ edition = "2021"
 
 [dev-dependencies]
 solipr-core = { path = "../core" }
+solipr-stack = { path = "../stack" }
 solipr-persistent = { path = "../persistent" }
 solipr-memory = { path = "../memory" }
 tempfile = "3.13.0"

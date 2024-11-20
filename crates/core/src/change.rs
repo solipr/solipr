@@ -50,6 +50,14 @@ impl FromStr for ChangeHash {
 )]
 pub struct FileId(Uuid);
 
+impl FileId {
+    /// Generate a new unique [`FileId`].
+    #[must_use]
+    pub fn unique() -> Self {
+        Self(Uuid::now_v7())
+    }
+}
+
 impl Display for FileId {
     #[expect(clippy::min_ident_chars, reason = "the trait is made that way")]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -82,31 +90,16 @@ impl Deref for FileId {
 pub struct LineId(Uuid);
 
 impl LineId {
-    /// The identifier of the first line in a file.
-    ///
-    /// This is line is not a real line, it is used to indicate the beginning of
-    /// the file.
-    pub const FIRST: Self = Self(Uuid::nil());
-
-    /// The identifier of the last line in a file.
-    ///
-    /// This is line is not a real line, it is used to indicate the end of the
-    /// file.
-    pub const LAST: Self = Self(Uuid::max());
-
     /// The identifier of an unknown line in a file.
     ///
     /// This is the identifier used for each line read from a file before using
     /// the diff algorithm to detect changes.
-    pub const UNKNOWN: Self = Self(Uuid::from_bytes([1; 16]));
+    pub const UNKNOWN: Self = Self(Uuid::nil());
 
-    /// Combine multiple lines into a unique identifier.
-    pub fn combine(lines: impl IntoIterator<Item = Self>) -> Uuid {
-        let mut result = Uuid::nil();
-        for line_id in lines {
-            result = Uuid::from_u128(result.as_u128() ^ line_id.0.as_u128());
-        }
-        result
+    /// Generate a new unique [`LineId`].
+    #[must_use]
+    pub fn unique() -> Self {
+        Self(Uuid::now_v7())
     }
 }
 
