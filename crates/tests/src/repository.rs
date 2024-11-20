@@ -8,6 +8,7 @@ use solipr_persistent::repository::PersistentRepositoryManager;
 use tempfile::TempDir;
 
 mod file;
+mod head;
 
 fn repository_manager_checks(manager: impl RepositoryManager, registry: impl Registry) {
     for _ in 0..1024 {
