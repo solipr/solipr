@@ -85,9 +85,6 @@ pub trait HeadExt<'manager>: Repository<'manager> {
         file_id: FileId,
         line_id: LineId,
     ) -> Result<HashSet<LineId>, Self::Error> {
-        if line_id == LineId::FIRST {
-            return Ok(HashSet::new());
-        }
         let heads = self.heads(SingleId::LineParent(file_id, line_id))?;
         let mut result = HashSet::with_capacity(heads.len());
         for head in heads {
@@ -98,9 +95,6 @@ pub trait HeadExt<'manager>: Repository<'manager> {
             {
                 result.insert(parent);
             }
-        }
-        if result.is_empty() {
-            result.insert(LineId::FIRST);
         }
         Ok(result)
     }
@@ -115,9 +109,6 @@ pub trait HeadExt<'manager>: Repository<'manager> {
     /// An error will be returned if there was an error while doing the
     /// operation.
     fn line_child(&self, file_id: FileId, line_id: LineId) -> Result<HashSet<LineId>, Self::Error> {
-        if line_id == LineId::LAST {
-            return Ok(HashSet::new());
-        }
         let heads = self.heads(SingleId::LineChild(file_id, line_id))?;
         let mut result = HashSet::with_capacity(heads.len());
         for head in heads {
@@ -128,9 +119,6 @@ pub trait HeadExt<'manager>: Repository<'manager> {
             {
                 result.insert(child);
             }
-        }
-        if result.is_empty() {
-            result.insert(LineId::LAST);
         }
         Ok(result)
     }
