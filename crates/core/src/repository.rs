@@ -14,10 +14,7 @@ use uuid::Uuid;
 
 use crate::change::{Change, ChangeHash, FileId, LineId, SingleId};
 
-pub mod diff;
-pub mod graph;
 pub mod head;
-pub mod linear;
 
 /// The identifier of a repository.
 #[derive(
