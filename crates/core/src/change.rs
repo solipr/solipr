@@ -87,15 +87,6 @@ impl LineId {
     /// This is the identifier used for each line read from a file before using
     /// the diff algorithm to detect changes.
     pub const UNKNOWN: Self = Self(Uuid::nil());
-
-    /// Combine multiple lines into a unique identifier.
-    pub fn combine(lines: impl IntoIterator<Item = Self>) -> Uuid {
-        let mut result = Uuid::nil();
-        for line_id in lines {
-            result = Uuid::from_u128(result.as_u128() ^ line_id.0.as_u128());
-        }
-        result
-    }
 }
 
 impl Display for LineId {
