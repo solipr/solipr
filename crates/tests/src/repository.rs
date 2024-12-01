@@ -4,6 +4,7 @@ use solipr_core::repository::{Repository, RepositoryId, RepositoryManager};
 use solipr_persistent::repository::{PersistentRepository, PersistentRepositoryManager};
 use tempfile::TempDir;
 
+mod head;
 mod registry;
 
 fn manager_check(test: fn(PersistentRepositoryManager)) {
@@ -13,7 +14,6 @@ fn manager_check(test: fn(PersistentRepositoryManager)) {
     temp_dir.close().unwrap();
 }
 
-#[expect(unused, reason = "will be usefull in the future")]
 fn read_repository_check(test: fn(PersistentRepository)) {
     let temp_dir = TempDir::new().unwrap();
     let manager = PersistentRepositoryManager::create(temp_dir.path()).unwrap();
@@ -22,7 +22,6 @@ fn read_repository_check(test: fn(PersistentRepository)) {
     temp_dir.close().unwrap();
 }
 
-#[expect(unused, reason = "will be usefull in the future")]
 fn write_repository_check(test: fn(&mut PersistentRepository)) {
     let temp_dir = TempDir::new().unwrap();
     let manager = PersistentRepositoryManager::create(temp_dir.path()).unwrap();

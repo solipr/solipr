@@ -572,6 +572,7 @@ dependencies = [
  "rand",
  "solipr-core",
  "solipr-persistent",
+ "solipr-stack",
  "tempfile",
 ]
 

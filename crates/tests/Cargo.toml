@@ -12,5 +12,6 @@ edition = "2021"
 [dev-dependencies]
 solipr-core = { path = "../core" }
 solipr-persistent = { path = "../persistent" }
+solipr-stack = { path = "../stack", features = ["borsh"] }
 tempfile = "3.13.0"
 rand = "0.8.5"
