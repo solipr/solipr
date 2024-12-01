@@ -108,6 +108,12 @@ impl LineId {
         }
         result
     }
+    
+    /// Generate a new unique [`LineId`].
+    #[must_use]
+    pub fn unique() -> Self {
+        Self(Uuid::now_v7())
+    }
 }
 
 impl Display for LineId {
