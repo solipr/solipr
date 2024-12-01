@@ -547,14 +547,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "solipr-memory"
-version = "0.0.1"
-dependencies = [
- "sha2",
- "solipr-core",
-]
-
-[[package]]
 name = "solipr-persistent"
 version = "0.0.1"
 dependencies = [
@@ -579,7 +571,6 @@ version = "0.0.1"
 dependencies = [
  "rand",
  "solipr-core",
- "solipr-memory",
  "solipr-persistent",
  "tempfile",
 ]
