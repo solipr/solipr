@@ -50,6 +50,14 @@ impl FromStr for ChangeHash {
 )]
 pub struct FileId(Uuid);
 
+impl FileId {
+    /// Generate a new unique [`FileId`].
+    #[must_use]
+    pub fn unique() -> Self {
+        Self(Uuid::now_v7())
+    }
+}
+
 impl Display for FileId {
     #[expect(clippy::min_ident_chars, reason = "the trait is made that way")]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
