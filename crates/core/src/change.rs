@@ -10,7 +10,7 @@ use sha2::{Digest, Sha256};
 use solipr_stack::StackVec;
 use uuid::Uuid;
 
-use crate::registry::ContentHash;
+use crate::repository::ContentHash;
 
 /// The hash of a change stored in the registry.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, BorshDeserialize, BorshSerialize)]
