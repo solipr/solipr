@@ -5,19 +5,16 @@
 
 use std::collections::HashSet;
 use std::error::Error;
-use std::fmt::{self, Display};
+use std::fmt::{self, Debug, Display};
+use std::io::Read;
 use std::ops::Deref;
 use std::str::FromStr;
 
+use base64::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
 use uuid::Uuid;
 
-use crate::change::{Change, ChangeHash, FileId, LineId, SingleId};
-
-pub mod diff;
-pub mod graph;
-pub mod head;
-pub mod linear;
+use crate::change::{Change, ChangeContent, ChangeHash, FileId, LineId, SingleId};
 
 /// The identifier of a repository.
 #[derive(
@@ -58,13 +55,59 @@ impl Deref for RepositoryId {
     }
 }
 
+/// The hash of a content stored in the registry.
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, BorshDeserialize, BorshSerialize)]
+pub struct ContentHash([u8; 32]);
+
+impl ContentHash {
+    /// Creates a new content hash from raw bytes.
+    #[must_use]
+    pub const fn new(bytes: [u8; 32]) -> Self {
+        Self(bytes)
+    }
+
+    /// Returns the raw bytes of the hash.
+    #[must_use]
+    pub const fn as_bytes(&self) -> &[u8; 32] {
+        &self.0
+    }
+}
+
+impl Debug for ContentHash {
+    #[expect(clippy::min_ident_chars, reason = "the trait is made that way")]
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_tuple("ContentHash")
+            .field(&format_args!("{}", BASE64_URL_SAFE_NO_PAD.encode(self.0)))
+            .finish()
+    }
+}
+
+impl Display for ContentHash {
+    #[expect(clippy::min_ident_chars, reason = "the trait is made that way")]
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "content:{}", BASE64_URL_SAFE_NO_PAD.encode(self.0))
+    }
+}
+
+impl FromStr for ContentHash {
+    type Err = base64::DecodeSliceError;
+
+    fn from_str(mut value: &str) -> Result<Self, Self::Err> {
+        value = value.trim();
+        value = value.strip_prefix("content:").unwrap_or(value);
+        let mut buffer = [0; 32];
+        BASE64_URL_SAFE_NO_PAD.decode_slice(value.as_bytes(), &mut buffer)?;
+        Ok(Self(buffer))
+    }
+}
+
 /// A [Repository] manager, used to open repositories.
 pub trait RepositoryManager {
     /// The error that can be returned when opening a repository.
     type Error: Error;
 
     /// The type of [Repository] returned when opening a repository.
-    type Repository<'manager>: Repository<'manager>
+    type Repository<'manager>: Repository<'manager, Manager = Self>
     where
         Self: 'manager;
 
@@ -85,12 +128,38 @@ pub trait RepositoryManager {
     ///
     /// An error will be returned if the repository could not be opened.
     fn open_write(&self, repository_id: RepositoryId) -> Result<Self::Repository<'_>, Self::Error>;
+
+    /// Returns a [`Read`] to the content with the given [`ContentHash`].
+    ///
+    /// Returns `None` if the content is not found.
+    ///
+    /// # Errors
+    ///
+    /// An error will be returned if the content could not be read.
+    fn read_content(&self, hash: ContentHash) -> Result<Option<impl Read>, Self::Error>;
+
+    /// Writes the given data into the registry and returns the hash of the
+    /// written content.
+    ///
+    /// If the content already exists, nothing will happen and the
+    /// [`ContentHash`] will still be returned.
+    ///
+    /// # Errors
+    ///
+    /// An error will be returned if the content could not be written.
+    fn write_content(&self, content: impl Read) -> Result<ContentHash, Self::Error>;
 }
 
 /// A repository.
 pub trait Repository<'manager> {
     /// The error that can be returned when doing a repository operation.
     type Error: Error;
+
+    /// The type of the [`RepositoryManager`] that created this repository.
+    type Manager: RepositoryManager;
+
+    /// Returns the [`RepositoryManager`] that created this repository.
+    fn manager(&self) -> &'manager Self::Manager;
 
     /// Returns an [Iterator] over the [Change]s applied to the repository.
     ///
@@ -131,6 +200,119 @@ pub trait Repository<'manager> {
     /// An error will be returned if there was an error while doing the
     /// operation.
     fn existing_lines(&self, file_id: FileId) -> Result<HashSet<LineId>, Self::Error>;
+
+    /// Returns the existence of the given [`LineId`].
+    ///
+    /// If there is an existence conflict, `None` will be returned. If there
+    /// is no conflict, `Some(true)` or `Some(false)` will be returned if the
+    /// line exists or not respectively.
+    ///
+    /// # Errors
+    ///
+    /// An error will be returned if there was an error while doing the
+    /// operation.
+    fn line_existence(
+        &self,
+        file_id: FileId,
+        line_id: LineId,
+    ) -> Result<Option<bool>, Self::Error> {
+        let heads = self.heads(SingleId::LineExistence(file_id, line_id))?;
+        let mut current_value = None;
+        for head in heads {
+            if let Some(Change {
+                content: ChangeContent::LineExistence { existence, .. },
+                ..
+            }) = self.change(head)?
+            {
+                if current_value.is_none() {
+                    current_value = Some(existence);
+                } else if current_value != Some(existence) {
+                    return Ok(None);
+                }
+            }
+        }
+        Ok(Some(current_value.unwrap_or(false)))
+    }
+
+    /// Returns the content of the given [`LineId`].
+    ///
+    /// If there is a conflict, multiple values will be returned. If no content
+    /// has been set, an empty set will be returned.
+    ///
+    /// # Errors
+    ///
+    /// An error will be returned if there was an error while doing the
+    /// operation.
+    fn line_content(
+        &self,
+        file_id: FileId,
+        line_id: LineId,
+    ) -> Result<HashSet<ContentHash>, Self::Error> {
+        let heads = self.heads(SingleId::LineContent(file_id, line_id))?;
+        let mut result = HashSet::with_capacity(heads.len());
+        for head in heads {
+            if let Some(Change {
+                content: ChangeContent::LineContent { content, .. },
+                ..
+            }) = self.change(head)?
+            {
+                result.insert(content);
+            }
+        }
+        Ok(result)
+    }
+
+    /// Returns the parent of the given [`LineId`].
+    ///
+    /// If there is a conflict, multiple values will be returned. If no parent
+    /// has been set, [`LineId::FIRST`] will be returned.
+    ///
+    /// # Errors
+    ///
+    /// An error will be returned if there was an error while doing the
+    /// operation.
+    fn line_parent(
+        &self,
+        file_id: FileId,
+        line_id: LineId,
+    ) -> Result<HashSet<LineId>, Self::Error> {
+        let heads = self.heads(SingleId::LineParent(file_id, line_id))?;
+        let mut result = HashSet::with_capacity(heads.len());
+        for head in heads {
+            if let Some(Change {
+                content: ChangeContent::LineParent { parent, .. },
+                ..
+            }) = self.change(head)?
+            {
+                result.insert(parent);
+            }
+        }
+        Ok(result)
+    }
+
+    /// Returns the child of the given [`LineId`].
+    ///
+    /// If there is a conflict, multiple values will be returned. If no child
+    /// has been set, [`LineId::LAST`] will be returned.
+    ///
+    /// # Errors
+    ///
+    /// An error will be returned if there was an error while doing the
+    /// operation.
+    fn line_child(&self, file_id: FileId, line_id: LineId) -> Result<HashSet<LineId>, Self::Error> {
+        let heads = self.heads(SingleId::LineChild(file_id, line_id))?;
+        let mut result = HashSet::with_capacity(heads.len());
+        for head in heads {
+            if let Some(Change {
+                content: ChangeContent::LineChild { child, .. },
+                ..
+            }) = self.change(head)?
+            {
+                result.insert(child);
+            }
+        }
+        Ok(result)
+    }
 
     /// Applies the given [`Change`] to the repository and returns the hash of
     /// the applied change.
