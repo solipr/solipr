@@ -1,0 +1,96 @@
+package solipr:file-manager@0.1.0;
+
+/// Interface for a plugin key-value store.
+///
+/// This key-value store should be used by the plugin to stores data that
+/// helps to speed-up operations (like indexes or cache for example).
+///
+/// Each plugin got his own key-value store for each file of every repository they work in,
+/// data cannot be shared between plugins or between repositories.
+interface kv-store {
+    /// Read the value that correspond to the given key.
+    ///
+    /// If the value is not in the key-value store, none is returned.
+    kv-read: func(key: list<u8>) -> result<option<list<u8>>, string>;
+
+    /// Write a value to the key-value store.
+    ///
+    /// If there is already a value for the given key, the value is replaced.
+    /// If the value given is none, the value associated with the given key is
+    /// removed from the key-value store.
+    kv-write: func(key: list<u8>, value: option<list<u8>>) -> result<_, string>;
+
+    /// Returns all the keys stored in the key-value store that contains
+    /// the given prefix.
+    ///
+    /// If the prefix is empty, all the keys of the key-value store are returned.
+    kv-keys: func(prefix: list<u8>) -> result<list<list<u8>>, string>;
+}
+
+/// Interface for a repository that the plugin works on.
+///
+/// This interface can be used by a plugin to get informations about
+/// the current repository.
+interface repository {
+    /// A change is a list of bytes.
+    ///
+    /// They are stored like this because
+    /// they are managed by the plugin internal system. So we can't know
+    /// what sort of data they can contains, it depends on the implementation
+    /// of the plugin.
+    type change = list<u8>;
+
+    /// Changes are identified by the sha256 hash of their bytes.
+    ///
+    /// This is used to refers to a change without making a copy of all the change's bytes.
+    type change-hash = string;
+
+    /// Get the data of the changes corresponding to the given change hash.
+    ///
+    /// If there is no applied changes that correspond to the given hash, none is returned.
+    get-change: func(change-hash: change-hash) -> result<option<change>, string>;
+
+    /// Returns a list of all the changes applied to the file in the repository.
+    all-changes: func() -> result<list<change-hash>, string>;
+}
+
+/// This is the world that represent a plugin that manages a certain type of file in a repository.
+///
+/// The plugin can manage the file and conflicts the way it wants.
+world file-manager {
+    use repository.{change, change-hash};
+
+    import kv-store;
+    import repository;
+
+    /// Render the file from the internal representation in the plugin to a list of bytes that
+    /// can be writen direcly to a file on the disk.
+    export render-file: func() -> result<list<u8>, string>;
+
+    /// Calculate a change that when applied to the repository should
+    /// transform the file to match the given new-content.
+    ///
+    /// If we apply the returned change, a call to render-file should return almost the same bytes as new-content.
+    /// For certain implementation there can be some differences, for example, a plugin that manages json files can
+    /// manage json files at a token level and ignore whitespaces, but the structure of the json file should be the
+    /// same as the one given in new-content after applying the change.
+    export calculate-diff: func(new-content: list<u8>) -> result<change, string>;
+
+    /// Apply a change to the file in the repository.
+    ///
+    /// Changes can be applied in any order, and the file must end up in the same state
+    /// whatever the order in which the changes are applied.
+    ///
+    /// The changes given to this function should be the changes previously returned by
+    /// the calculate-diff function of this plugin, however we don't have control over
+    /// what is done by other client and therefor changes can be malformed so this function
+    /// is responsible for checking if the change is valid before applying it.
+    export apply-change: func(change: change) -> result<_, string>;
+
+    /// Unapply a previously applied change.
+    ///
+    /// Changes are not guaranteed to be unapplied in the same order as they were applied, but the rule for
+    /// apply-change still apply, for example if the changes A, B and C are applied in this order and the B
+    /// change is unapplied, this should be the same as applying just C and then B directly.
+    export unapply-change: func(change-hash: change-hash) -> result<_, string>;
+}
