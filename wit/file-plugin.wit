@@ -7,32 +7,31 @@ interface kv-store {
 }
 
 interface repository {
-    type change-hash = string;
-    type change-data = list<u8>;
+    record change-data {
+        used-contents: list<string>,
+        plugin-data: list<u8>,
+    }
 
-    read-change: func(change-hash: change-hash) -> option<change-data>;
-}
+    record change {
+        timestamp: u128,
+    }
 
-interface registry {
-    type content-hash = string;
-    type content-data = list<u8>;
-
-    read-content: func(content-hash: content-hash) -> option<content-data>;
-    save-content: func(content-data: content-data) -> content-hash;
+    read-change: func(change-hash: string) -> option<change>;
+    read-content: func(content-hash: string) -> option<list<u8>>;
+    save-content: func(content-data: list<u8>) -> string;
 }
 
 world file-plugin {
-    use repository.{change-hash, change-data};
-    use registry.{content-hash, content-data};
+    use repository.{change};
 
     import kv-store;
     import repository;
 
     import render-bytes: func(bytes: list<u8>);
-    import render-content: func(content-hash: content-hash);
+    import render-content: func(content-hash: string);
     export render-file: func();
 
-    export calculate-diff: func(new-content: list<u8>) -> change-data;
-    export apply-change: func(change: change-data);
-    export unapply-change: func(change: change-data);
+    export calculate-diff: func(content-hash: string) -> change;
+    export apply-change: func(change: change);
+    export unapply-change: func(change: change);
 }

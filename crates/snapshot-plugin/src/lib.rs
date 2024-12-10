@@ -6,19 +6,25 @@ wit_bindgen::generate!({
 struct Plugin;
 
 impl Guest for Plugin {
-    fn render_file() -> Result<Vec<u8>, String> {
+    fn render_file() {
         todo!()
     }
 
-    fn calculate_diff(new_content: Vec<u8>) -> Result<Vec<u8>, String> {
+    fn calculate_diff(content_hash: String) -> Change {
         todo!()
     }
 
-    fn apply_change(change: Vec<u8>) -> Result<(), String> {
+    fn apply_change(change: Change) {
+        let timestamp = u128::from_be_bytes(
+            change
+                .plugin_data
+                .try_into()
+                .expect("invalid change timestamp"),
+        );
         todo!()
     }
 
-    fn unapply_change(change_hash: String) -> Result<(), String> {
+    fn unapply_change(change: Change) {
         todo!()
     }
 }
