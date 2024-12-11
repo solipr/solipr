@@ -7,13 +7,9 @@ interface kv-store {
 }
 
 interface repository {
-    record change-data {
+    record change {
         used-contents: list<string>,
         plugin-data: list<u8>,
-    }
-
-    record change {
-        timestamp: u128,
     }
 
     read-change: func(change-hash: string) -> option<change>;
@@ -31,7 +27,7 @@ world file-plugin {
     import render-content: func(content-hash: string);
     export render-file: func();
 
-    export calculate-diff: func(content-hash: string) -> change;
+    export calculate-diff: func(content-hash: string) -> option<change>;
     export apply-change: func(change: change);
     export unapply-change: func(change: change);
 }
