@@ -1,11 +1,9 @@
-use std::collections::{BTreeSet, BinaryHeap, HashSet};
+use std::collections::{BTreeSet, HashSet};
 
 use base64::prelude::{BASE64_URL_SAFE_NO_PAD, Engine};
 use sha3::{Digest, Sha3_256};
-use solipr::file_plugin::kv_store::{kv_keys, kv_read, kv_write};
-use solipr::file_plugin::repository::{
-    change_read, content_cut, content_read, content_read_at, content_size,
-};
+use solipr::file_plugin::kv_store::{kv_keys, kv_write};
+use solipr::file_plugin::repository::{change_read, content_cut, content_read_at, content_size};
 
 wit_bindgen::generate!({
     path: "../../wit",
