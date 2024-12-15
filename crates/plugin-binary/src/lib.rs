@@ -22,7 +22,6 @@ impl Guest for Plugin {
             .map(|change_hash| change_read(&change_hash).expect("head not found"))
             .flat_map(|change| change.used_contents)
             .collect::<BTreeSet<String>>();
-
         if contents.len() > 1 {
             render_bytes(CONFLICT_MARKER);
             render_bytes((contents.len() as u16).to_be_bytes().as_slice());
