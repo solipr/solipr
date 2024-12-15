@@ -12,9 +12,13 @@ interface repository {
         plugin-data: list<u8>,
     }
 
-    read-change: func(change-hash: string) -> option<change>;
-    read-content: func(content-hash: string) -> option<list<u8>>;
-    save-content: func(content-data: list<u8>) -> string;
+    change-read: func(change-hash: string) -> option<change>;
+
+    content-read: func(content-hash: string) -> option<list<u8>>;
+    content-read-at: func(content-hash: string, start: u64, length: u64) -> option<list<u8>>;
+    content-size: func(content-hash: string) -> option<u64>;
+    content-save: func(content-data: list<u8>) -> string;
+    content-cut: func(content-hash: string, start: u64, length: option<u64>) -> option<string>;
 }
 
 world file-plugin {
