@@ -57,8 +57,7 @@ impl Guest for Plugin {
                         .try_into()
                         .expect("invalid conflict size"),
                 );
-                contents
-                    .insert(content_cut(&content_hash, position, Some(size)).expect("cut failed"));
+                contents.insert(content_cut(&content_hash, position, Some(size)).unwrap());
                 position += size;
             }
         } else {
