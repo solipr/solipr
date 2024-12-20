@@ -10,7 +10,7 @@ categories = ["development-tools"]
 edition = "2021"
 
 [dependencies]
-borsh = { version = "1.5.1", features = ["derive"], optional = true }
+borsh = { version = "1.5.3", features = ["derive"], optional = true }
 
 [features]
 borsh = ["dep:borsh"]
