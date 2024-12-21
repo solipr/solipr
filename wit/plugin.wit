@@ -1,4 +1,4 @@
-package solipr:file-plugin@0.1.0;
+package solipr:plugin@0.1.0;
 
 /// Interface for a key-value store.
 ///
