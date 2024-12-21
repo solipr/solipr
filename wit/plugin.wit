@@ -115,7 +115,7 @@ interface repository {
 }
 
 /// The plugin interface.
-world file-plugin {
+world plugin {
     use repository.{change};
 
     import kv-store;
