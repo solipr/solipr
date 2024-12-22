@@ -3,7 +3,7 @@ use std::collections::{BTreeSet, HashSet};
 use solipr::plugin::kv_store::{kv_keys, kv_write};
 use solipr::plugin::repository::{change_read, content_cut, content_read_at, content_size};
 
-solipr_plugin::generate!("../../wit");
+solipr_plugin::generate!();
 
 struct Plugin;
 
