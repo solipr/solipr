@@ -3,11 +3,14 @@
 //! This daemon should run in the background and is responsible for managing
 //! repositories and connecting to peers in the Solipr network.
 
+use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::path::PathBuf;
 
+use axum::Router;
+use axum::routing::get;
 use serde::{Deserialize, Serialize};
-use tokio::net::UnixListener;
-use tokio::{fs, io};
+use tokio::io;
+use tokio::net::TcpListener;
 
 /// The configuration of the Solipr daemon.
 #[derive(Deserialize, Serialize)]
@@ -15,10 +18,8 @@ struct Config {
     /// The path of the folder in which Solipr stores its data.
     data_folder: PathBuf,
 
-    /// The path of the daemon's socket.
-    ///
-    /// This path is relative to the Solipr data folder.
-    socket_path: PathBuf,
+    /// The address on which the Solipr daemon should listen.
+    listen_address: SocketAddr,
 }
 
 impl Default for Config {
@@ -26,7 +27,7 @@ impl Default for Config {
         let home = home::home_dir().unwrap_or_default();
         Self {
             data_folder: home.join(".solipr"),
-            socket_path: PathBuf::from("solipr.sock"),
+            listen_address: SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 2718),
         }
     }
 }
@@ -34,10 +35,12 @@ impl Default for Config {
 #[tokio::main]
 async fn main() -> io::Result<()> {
     let config: Config = confy::load("solipr", None).map_err(io::Error::other)?;
-    fs::create_dir_all(&config.data_folder).await?;
-    {
-        let _ = UnixListener::bind(config.data_folder.join(&config.socket_path))?;
-    }
-    fs::remove_file(config.data_folder.join(&config.socket_path)).await?;
-    Ok(())
+    let app = Router::new().route("/", get(hello_world));
+    let listener = TcpListener::bind(config.listen_address).await?;
+    axum::serve(listener, app).await
+}
+
+/// Serves a simple "Hello, World!" message.
+async fn hello_world() -> &'static str {
+    "Hello, World!"
 }
