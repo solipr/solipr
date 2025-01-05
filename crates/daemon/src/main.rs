@@ -3,7 +3,6 @@
 //! This daemon should run in the background and is responsible for managing
 //! repositories and connecting to peers in the Solipr network.
 
-use std::borrow::BorrowMut;
 use std::sync::Arc;
 
 use axum::Router;
@@ -11,7 +10,7 @@ use axum::routing::get;
 use config::CONFIG;
 use daemon::SoliprDaemon;
 use tokio::net::TcpListener;
-use tokio::{io, select, signal};
+use tokio::{select, signal};
 
 mod config;
 mod daemon;
