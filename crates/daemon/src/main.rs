@@ -49,7 +49,7 @@ async fn shutdown_signal() {
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     println!("Starting Solipr daemon");
-    let daemon = Arc::new(SoliprDaemon::start().await?);
+    let daemon = Arc::new(SoliprDaemon::start()?);
     let app = Router::new()
         .route("/", get(hello_world))
         .with_state(Arc::clone(&daemon));
