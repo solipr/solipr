@@ -1,0 +1,24 @@
+[package]
+name = "solipr-daemon"
+version = "0.0.1"
+description = "The Solipr daemon"
+repository = "https://github.com/solipr/solipr"
+readme = "README.md"
+license = "GPL-3.0-or-later"
+keywords = ["vcs"]
+categories = ["development-tools"]
+edition = "2021"
+
+[dependencies]
+serde = { version = "1.0.217", features = ["derive"] }
+tokio = { version = "1.42.0", features = [
+    "rt-multi-thread",
+    "macros",
+    "net",
+    "fs",
+] }
+home = "0.5.11"
+confy = "0.6.1"
+
+[lints]
+workspace = true
