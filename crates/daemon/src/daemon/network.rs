@@ -5,7 +5,8 @@ use std::collections::{HashSet, VecDeque};
 
 use anyhow::{Context, bail};
 use libp2p::futures::StreamExt;
-use libp2p::swarm::{NetworkBehaviour, SwarmEvent, dummy};
+use libp2p::swarm::{NetworkBehaviour, SwarmEvent};
+use libp2p::upnp::tokio::Behaviour as UpnpBehaviour;
 use libp2p::{Multiaddr, Swarm, SwarmBuilder};
 use tokio::select;
 use tokio::sync::mpsc::{Receiver, Sender, channel};
@@ -39,10 +40,7 @@ trait RawNetworkCommand: Send {
     ///
     /// This function should not block or execute other commands
     /// because it will block the execution of the network loop.
-    fn start(
-        self: Box<Self>,
-        swarm: &mut Swarm<dummy::Behaviour>,
-    ) -> Option<Box<dyn RawNetworkCommand>>;
+    fn start(self: Box<Self>, swarm: &mut Swarm<Behaviour>) -> Option<Box<dyn RawNetworkCommand>>;
 
     /// Executed for each network event in the network loop when the command is
     /// running.
@@ -53,11 +51,21 @@ trait RawNetworkCommand: Send {
     /// because it will block the execution of the network loop.
     fn on_event(
         self: Box<Self>,
-        _swarm: &mut Swarm<dummy::Behaviour>,
-        _event: &SwarmEvent<<dummy::Behaviour as NetworkBehaviour>::ToSwarm>,
+        _swarm: &mut Swarm<Behaviour>,
+        _event: &SwarmEvent<BehaviourEvent>,
     ) -> Option<Box<dyn RawNetworkCommand>> {
         unreachable!();
     }
+}
+
+/// The [`NetworkBehaviour`] used by the network system [Swarm].
+///
+/// It is a combination of multiple [`NetworkBehaviour`] joined together.
+#[derive(NetworkBehaviour)]
+struct Behaviour {
+    /// Automatically tries to map the external port to an internal address on
+    /// the gateway.
+    upnp: UpnpBehaviour,
 }
 
 /// This struct represents the Solipr network system.
@@ -80,7 +88,9 @@ impl SoliprNetwork {
         let mut swarm = SwarmBuilder::with_new_identity()
             .with_tokio()
             .with_quic()
-            .with_behaviour(|_| dummy::Behaviour)?
+            .with_behaviour(|_| Behaviour {
+                upnp: UpnpBehaviour::default(),
+            })?
             .build();
         swarm.listen_on(CONFIG.peer_address.clone())?;
         let (stop_sender, stop_receiver) = channel(1);
@@ -146,7 +156,7 @@ impl SoliprNetwork {
         impl RawNetworkCommand for RawCommand {
             fn start(
                 self: Box<Self>,
-                swarm: &mut Swarm<dummy::Behaviour>,
+                swarm: &mut Swarm<Behaviour>,
             ) -> Option<Box<dyn RawNetworkCommand>> {
                 let _ = self
                     .0
@@ -161,7 +171,7 @@ impl SoliprNetwork {
 
 /// This is the main loop of the network system.
 async fn network_loop(
-    mut swarm: Swarm<dummy::Behaviour>,
+    mut swarm: Swarm<Behaviour>,
     mut stop_receiver: Receiver<()>,
     mut command_receiver: Receiver<Box<dyn RawNetworkCommand>>,
 ) -> anyhow::Result<()> {
