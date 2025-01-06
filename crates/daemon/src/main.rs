@@ -6,6 +6,9 @@
 use std::sync::Arc;
 
 use axum::Router;
+use axum::extract::State;
+use axum::http::StatusCode;
+use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use config::CONFIG;
 use daemon::SoliprDaemon;
@@ -14,6 +17,25 @@ use tokio::{select, signal};
 
 mod config;
 mod daemon;
+
+/// Our own error that wraps [`anyhow::Error`] to use this with axum.
+struct AppError(anyhow::Error);
+
+impl IntoResponse for AppError {
+    fn into_response(self) -> Response {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Something went wrong: {}", self.0),
+        )
+            .into_response()
+    }
+}
+
+impl<E: Into<anyhow::Error>> From<E> for AppError {
+    fn from(err: E) -> Self {
+        Self(err.into())
+    }
+}
 
 /// Waits for a shutdown signal.
 #[expect(
@@ -63,9 +85,10 @@ async fn main() -> anyhow::Result<()> {
 }
 
 /// Serves a simple "Hello, World!" message.
-async fn hello_world() -> String {
-    format!(
-        "Hello, World!\nData folder: {}",
-        CONFIG.data_folder.display()
-    )
+async fn hello_world(State(daemon): State<Arc<SoliprDaemon>>) -> Result<String, AppError> {
+    Ok(format!(
+        "Hello, World!\nData folder: {}\nExternal addresses: {:#?}",
+        CONFIG.data_folder.display(),
+        daemon.external_addresses().await?,
+    ))
 }
