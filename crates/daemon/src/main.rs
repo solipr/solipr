@@ -75,7 +75,7 @@ async fn main() -> anyhow::Result<()> {
     let app = Router::new()
         .route("/", get(hello_world))
         .with_state(Arc::clone(&daemon));
-    let listener = TcpListener::bind(CONFIG.listen_address).await?;
+    let listener = TcpListener::bind(CONFIG.http_address).await?;
     axum::serve(listener, app)
         .with_graceful_shutdown(shutdown_signal())
         .await?;
