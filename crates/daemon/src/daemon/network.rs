@@ -5,6 +5,8 @@ use std::collections::{HashSet, VecDeque};
 
 use anyhow::{Context, bail};
 use libp2p::futures::StreamExt;
+use libp2p::identity::Keypair;
+use libp2p::identity::ed25519::Keypair as Ed25519Keypair;
 use libp2p::swarm::{NetworkBehaviour, SwarmEvent};
 use libp2p::upnp::tokio as upnp_tokio;
 use libp2p::{Multiaddr, Swarm, SwarmBuilder, identify};
@@ -91,7 +93,18 @@ pub struct SoliprNetwork {
 impl SoliprNetwork {
     /// Starts a new network system and returns it.
     pub fn start() -> anyhow::Result<Self> {
-        let mut swarm = SwarmBuilder::with_new_identity()
+        let entry = keyring::Entry::new("solipr", &whoami::username())?;
+        let keypair: Keypair = match entry.get_secret() {
+            Ok(mut bytes) => Ed25519Keypair::try_from_bytes(&mut bytes)?.into(),
+            Err(keyring::Error::NoEntry) => {
+                let keypair = Ed25519Keypair::generate();
+                entry.set_secret(keypair.to_bytes().as_slice())?;
+                keypair.into()
+            }
+            Err(err) => return Err(err.into()),
+        };
+        println!("Starting with identity: {}", keypair.public().to_peer_id());
+        let mut swarm = SwarmBuilder::with_existing_identity(keypair)
             .with_tokio()
             .with_quic()
             .with_behaviour(|key| Behaviour {
