@@ -17,6 +17,9 @@ use tokio::task::JoinHandle;
 
 use crate::config::CONFIG;
 
+/// An event that can be emitted by the network system.
+pub enum NetworkEvent {}
+
 /// A command that can be sent to the network system and return a result.
 trait NetworkCommand: Sized + Send {
     /// The type of the result of the command.
@@ -86,6 +89,11 @@ pub struct SoliprNetwork {
     /// It is stored in a mutex to make it usable using only a shared reference.
     loop_handle: Mutex<Option<JoinHandle<anyhow::Result<()>>>>,
 
+    /// The [Receiver] used to receive events from the network loop.
+    ///
+    /// It is stored in a mutex to make it usable using only a shared reference.
+    event_receiver: Mutex<Receiver<NetworkEvent>>,
+
     /// The [Sender] used to send [`NetworkCommand`] to the network loop.
     command_sender: Sender<Box<dyn RawNetworkCommand>>,
 }
@@ -120,15 +128,18 @@ impl SoliprNetwork {
             .build();
         swarm.listen_on(CONFIG.peer_address.clone())?;
         let (stop_sender, stop_receiver) = channel(1);
+        let (event_sender, event_receiver) = channel(32);
         let (command_sender, command_receiver) = channel(1);
         let loop_handle = Mutex::new(Some(tokio::spawn(network_loop(
             swarm,
             stop_receiver,
+            event_sender,
             command_receiver,
         ))));
         Ok(Self {
             stop_sender,
             loop_handle,
+            event_receiver: Mutex::new(event_receiver),
             command_sender,
         })
     }
@@ -143,6 +154,17 @@ impl SoliprNetwork {
             handle.await??;
         }
         Ok(())
+    }
+
+    /// Wait for the next network event and return it.
+    #[expect(dead_code, reason = "will be used in the future")]
+    pub async fn next_event(&self) -> anyhow::Result<NetworkEvent> {
+        self.event_receiver
+            .lock()
+            .await
+            .recv()
+            .await
+            .context("network loop is not running")
     }
 
     /// Execute a command in the network system and return the result.
@@ -199,6 +221,7 @@ impl SoliprNetwork {
 async fn network_loop(
     mut swarm: Swarm<Behaviour>,
     mut stop_receiver: Receiver<()>,
+    event_sender: Sender<NetworkEvent>,
     mut command_receiver: Receiver<Box<dyn RawNetworkCommand>>,
 ) -> anyhow::Result<()> {
     let mut current_commands: VecDeque<Box<dyn RawNetworkCommand>> = VecDeque::new();
@@ -213,7 +236,7 @@ async fn network_loop(
                         }
                     }
                 }
-                handle_event(&mut swarm, event);
+                handle_event(&mut swarm, &event_sender, event);
             },
             _ = stop_receiver.recv() => break,
             command = command_receiver.recv() => {
@@ -228,7 +251,11 @@ async fn network_loop(
 }
 
 /// Handle an event in the network system.
-fn handle_event(swarm: &mut Swarm<Behaviour>, event: SwarmEvent<BehaviourEvent>) {
+fn handle_event(
+    swarm: &mut Swarm<Behaviour>,
+    _event_sender: &Sender<NetworkEvent>,
+    event: SwarmEvent<BehaviourEvent>,
+) {
     if let SwarmEvent::Behaviour(BehaviourEvent::Identify(identify::Event::Received {
         peer_id,
         info,
