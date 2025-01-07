@@ -3,13 +3,17 @@
 //! This daemon should run in the background and is responsible for managing
 //! repositories and connecting to peers in the Solipr network.
 
+use std::sync::Arc;
+
 use axum::Router;
 use axum::routing::get;
 use config::CONFIG;
+use daemon::SoliprDaemon;
 use tokio::net::TcpListener;
-use tokio::{io, select, signal};
+use tokio::{select, signal};
 
 mod config;
+mod daemon;
 
 /// Waits for a shutdown signal.
 #[expect(
@@ -43,13 +47,17 @@ async fn shutdown_signal() {
 }
 
 #[tokio::main]
-async fn main() -> io::Result<()> {
+async fn main() -> anyhow::Result<()> {
     println!("Starting Solipr daemon");
-    let app = Router::new().route("/", get(hello_world));
+    let daemon = Arc::new(SoliprDaemon::start().await?);
+    let app = Router::new()
+        .route("/", get(hello_world))
+        .with_state(Arc::clone(&daemon));
     let listener = TcpListener::bind(CONFIG.listen_address).await?;
     axum::serve(listener, app)
         .with_graceful_shutdown(shutdown_signal())
         .await?;
+    daemon.stop().await?;
     println!("Solipr daemon stopped");
     Ok(())
 }
