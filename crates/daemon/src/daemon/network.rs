@@ -200,6 +200,7 @@ async fn network_loop(
                         }
                     }
                 }
+                handle_event(&mut swarm, event);
             },
             _ = stop_receiver.recv() => break,
             command = command_receiver.recv() => {
@@ -211,4 +212,18 @@ async fn network_loop(
         }
     }
     Ok(())
+}
+
+/// Handle an event in the network system.
+fn handle_event(swarm: &mut Swarm<Behaviour>, event: SwarmEvent<BehaviourEvent>) {
+    if let SwarmEvent::Behaviour(BehaviourEvent::Identify(identify::Event::Received {
+        peer_id,
+        info,
+        ..
+    })) = event
+    {
+        if !info.protocol_version.starts_with("solipr/") {
+            let _ = swarm.disconnect_peer_id(peer_id);
+        }
+    }
 }
