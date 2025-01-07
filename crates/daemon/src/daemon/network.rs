@@ -6,7 +6,7 @@ use std::collections::{HashSet, VecDeque};
 use anyhow::{Context, bail};
 use libp2p::futures::StreamExt;
 use libp2p::swarm::{NetworkBehaviour, SwarmEvent};
-use libp2p::upnp::tokio::Behaviour as UpnpBehaviour;
+use libp2p::upnp::tokio as upnp_tokio;
 use libp2p::{Multiaddr, Swarm, SwarmBuilder, identify};
 use tokio::select;
 use tokio::sync::mpsc::{Receiver, Sender, channel};
@@ -65,7 +65,7 @@ trait RawNetworkCommand: Send {
 struct Behaviour {
     /// Automatically tries to map the external port to an internal address on
     /// the gateway.
-    upnp: UpnpBehaviour,
+    upnp: upnp_tokio::Behaviour,
 
     /// Identifies the node to other peers.
     ///
@@ -95,7 +95,7 @@ impl SoliprNetwork {
             .with_tokio()
             .with_quic()
             .with_behaviour(|key| Behaviour {
-                upnp: UpnpBehaviour::default(),
+                upnp: upnp_tokio::Behaviour::default(),
                 identify: identify::Behaviour::new(
                     identify::Config::new(
                         format!("solipr/{}", env!("CARGO_PKG_VERSION")),
