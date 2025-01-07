@@ -8,6 +8,8 @@ use std::path::PathBuf;
 use config::{Config, Environment, File};
 use directories::ProjectDirs;
 use lazy_static::lazy_static;
+use libp2p::Multiaddr;
+use libp2p::multiaddr::Protocol;
 use serde::Deserialize;
 use serde_inline_default::serde_inline_default;
 
@@ -47,7 +49,16 @@ pub struct DaemonConfig {
     #[serde_inline_default(PROJECT_DIRS.data_dir().to_owned())]
     pub data_folder: PathBuf,
 
-    /// The address on which the Solipr daemon should listen.
+    /// The address on which the daemon http api should listen.
     #[serde_inline_default(SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 2718))]
-    pub listen_address: SocketAddr,
+    pub http_address: SocketAddr,
+
+    /// The address on which the peer should listen.
+    #[serde_inline_default(
+        Multiaddr::empty()
+            .with(Protocol::Ip4(Ipv4Addr::UNSPECIFIED))
+            .with(Protocol::Udp(2729))
+            .with(Protocol::QuicV1)
+    )]
+    pub peer_address: Multiaddr,
 }

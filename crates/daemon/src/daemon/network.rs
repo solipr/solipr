@@ -12,6 +12,8 @@ use tokio::sync::mpsc::{Receiver, Sender, channel};
 use tokio::sync::{Mutex, oneshot};
 use tokio::task::JoinHandle;
 
+use crate::config::CONFIG;
+
 /// A command that can be sent to the network system and return a result.
 trait NetworkCommand: Sized + Send {
     /// The type of the result of the command.
@@ -80,7 +82,7 @@ impl SoliprNetwork {
             .with_quic()
             .with_behaviour(|_| dummy::Behaviour)?
             .build();
-        swarm.listen_on("/ip4/0.0.0.0/udp/27918/quic-v1".parse()?)?;
+        swarm.listen_on(CONFIG.peer_address.clone())?;
         let (stop_sender, stop_receiver) = channel(1);
         let (command_sender, command_receiver) = channel(1);
         let loop_handle = Mutex::new(Some(tokio::spawn(network_loop(
