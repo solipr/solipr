@@ -69,7 +69,8 @@ struct Behaviour {
 
     /// Identifies the node to other peers.
     ///
-    /// This is mainly used to send the external address of the node to other peers.
+    /// This is mainly used to send the external address of the node to other
+    /// peers.
     identify: identify::Behaviour,
 }
 
