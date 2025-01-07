@@ -18,6 +18,7 @@ use tokio::task::JoinHandle;
 use crate::config::CONFIG;
 
 /// An event that can be emitted by the network system.
+#[derive(Debug)]
 pub enum NetworkEvent {}
 
 /// A command that can be sent to the network system and return a result.
@@ -157,7 +158,6 @@ impl SoliprNetwork {
     }
 
     /// Wait for the next network event and return it.
-    #[expect(dead_code, reason = "will be used in the future")]
     pub async fn next_event(&self) -> anyhow::Result<NetworkEvent> {
         self.event_receiver
             .lock()
