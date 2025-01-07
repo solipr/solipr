@@ -5,15 +5,21 @@ use std::collections::{HashSet, VecDeque};
 
 use anyhow::{Context, bail};
 use libp2p::futures::StreamExt;
+use libp2p::identity::Keypair;
+use libp2p::identity::ed25519::Keypair as Ed25519Keypair;
 use libp2p::swarm::{NetworkBehaviour, SwarmEvent};
-use libp2p::upnp::tokio::Behaviour as UpnpBehaviour;
-use libp2p::{Multiaddr, Swarm, SwarmBuilder};
+use libp2p::upnp::tokio as upnp_tokio;
+use libp2p::{Multiaddr, Swarm, SwarmBuilder, identify};
 use tokio::select;
 use tokio::sync::mpsc::{Receiver, Sender, channel};
 use tokio::sync::{Mutex, oneshot};
 use tokio::task::JoinHandle;
 
 use crate::config::CONFIG;
+
+/// An event that can be emitted by the network system.
+#[derive(Debug)]
+pub enum NetworkEvent {}
 
 /// A command that can be sent to the network system and return a result.
 trait NetworkCommand: Sized + Send {
@@ -65,7 +71,13 @@ trait RawNetworkCommand: Send {
 struct Behaviour {
     /// Automatically tries to map the external port to an internal address on
     /// the gateway.
-    upnp: UpnpBehaviour,
+    upnp: upnp_tokio::Behaviour,
+
+    /// Identifies the node to other peers.
+    ///
+    /// This is mainly used to send the external address of the node to other
+    /// peers.
+    identify: identify::Behaviour,
 }
 
 /// This struct represents the Solipr network system.
@@ -78,6 +90,11 @@ pub struct SoliprNetwork {
     /// It is stored in a mutex to make it usable using only a shared reference.
     loop_handle: Mutex<Option<JoinHandle<anyhow::Result<()>>>>,
 
+    /// The [Receiver] used to receive events from the network loop.
+    ///
+    /// It is stored in a mutex to make it usable using only a shared reference.
+    event_receiver: Mutex<Receiver<NetworkEvent>>,
+
     /// The [Sender] used to send [`NetworkCommand`] to the network loop.
     command_sender: Sender<Box<dyn RawNetworkCommand>>,
 }
@@ -85,24 +102,45 @@ pub struct SoliprNetwork {
 impl SoliprNetwork {
     /// Starts a new network system and returns it.
     pub fn start() -> anyhow::Result<Self> {
-        let mut swarm = SwarmBuilder::with_new_identity()
+        let entry = keyring::Entry::new("solipr", &whoami::username())?;
+        let keypair: Keypair = match entry.get_secret() {
+            Ok(mut bytes) => Ed25519Keypair::try_from_bytes(&mut bytes)?.into(),
+            Err(keyring::Error::NoEntry) => {
+                let keypair = Ed25519Keypair::generate();
+                entry.set_secret(keypair.to_bytes().as_slice())?;
+                keypair.into()
+            }
+            Err(err) => return Err(err.into()),
+        };
+        println!("Starting with identity: {}", keypair.public().to_peer_id());
+        let mut swarm = SwarmBuilder::with_existing_identity(keypair)
             .with_tokio()
             .with_quic()
-            .with_behaviour(|_| Behaviour {
-                upnp: UpnpBehaviour::default(),
+            .with_behaviour(|key| Behaviour {
+                upnp: upnp_tokio::Behaviour::default(),
+                identify: identify::Behaviour::new(
+                    identify::Config::new(
+                        format!("solipr/{}", env!("CARGO_PKG_VERSION")),
+                        key.public(),
+                    )
+                    .with_hide_listen_addrs(true),
+                ),
             })?
             .build();
         swarm.listen_on(CONFIG.peer_address.clone())?;
         let (stop_sender, stop_receiver) = channel(1);
+        let (event_sender, event_receiver) = channel(32);
         let (command_sender, command_receiver) = channel(1);
         let loop_handle = Mutex::new(Some(tokio::spawn(network_loop(
             swarm,
             stop_receiver,
+            event_sender,
             command_receiver,
         ))));
         Ok(Self {
             stop_sender,
             loop_handle,
+            event_receiver: Mutex::new(event_receiver),
             command_sender,
         })
     }
@@ -117,6 +155,16 @@ impl SoliprNetwork {
             handle.await??;
         }
         Ok(())
+    }
+
+    /// Wait for the next network event and return it.
+    pub async fn next_event(&self) -> anyhow::Result<NetworkEvent> {
+        self.event_receiver
+            .lock()
+            .await
+            .recv()
+            .await
+            .context("network loop is not running")
     }
 
     /// Execute a command in the network system and return the result.
@@ -173,6 +221,7 @@ impl SoliprNetwork {
 async fn network_loop(
     mut swarm: Swarm<Behaviour>,
     mut stop_receiver: Receiver<()>,
+    event_sender: Sender<NetworkEvent>,
     mut command_receiver: Receiver<Box<dyn RawNetworkCommand>>,
 ) -> anyhow::Result<()> {
     let mut current_commands: VecDeque<Box<dyn RawNetworkCommand>> = VecDeque::new();
@@ -187,6 +236,7 @@ async fn network_loop(
                         }
                     }
                 }
+                handle_event(&mut swarm, &event_sender, event);
             },
             _ = stop_receiver.recv() => break,
             command = command_receiver.recv() => {
@@ -198,4 +248,22 @@ async fn network_loop(
         }
     }
     Ok(())
+}
+
+/// Handle an event in the network system.
+fn handle_event(
+    swarm: &mut Swarm<Behaviour>,
+    _event_sender: &Sender<NetworkEvent>,
+    event: SwarmEvent<BehaviourEvent>,
+) {
+    if let SwarmEvent::Behaviour(BehaviourEvent::Identify(identify::Event::Received {
+        peer_id,
+        info,
+        ..
+    })) = event
+    {
+        if !info.protocol_version.starts_with("solipr/") {
+            let _ = swarm.disconnect_peer_id(peer_id);
+        }
+    }
 }
