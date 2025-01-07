@@ -16,8 +16,14 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
+    - name: Install nightly
+      run: rustup install nightly --profile minimal
+    
+    - name: Install nightly rustfmt
+      run: rustup component add rustfmt --toolchain nightly
+
     - name: Check fmt
-      run: cargo fmt --check
+      run: cargo +nightly fmt --check
   
     - name: Clippy checks
       run: cargo clippy -- -D warnings
