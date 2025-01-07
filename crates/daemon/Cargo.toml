@@ -16,7 +16,13 @@ tokio = { version = "1.42.0", features = [
     "macros",
     "signal",
 ] }
-libp2p = { version = "0.54.1", features = ["tokio", "macros", "quic", "upnp"] }
+libp2p = { git = "https://github.com/libp2p/rust-libp2p.git", features = [
+    "tokio",
+    "macros",
+    "quic",
+    "upnp",
+    "identify",
+] }
 serde-inline-default = "0.2.3"
 directories = "5.0.1"
 lazy_static = "1.5.0"

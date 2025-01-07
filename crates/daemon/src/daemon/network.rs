@@ -7,7 +7,7 @@ use anyhow::{Context, bail};
 use libp2p::futures::StreamExt;
 use libp2p::swarm::{NetworkBehaviour, SwarmEvent};
 use libp2p::upnp::tokio::Behaviour as UpnpBehaviour;
-use libp2p::{Multiaddr, Swarm, SwarmBuilder};
+use libp2p::{Multiaddr, Swarm, SwarmBuilder, identify};
 use tokio::select;
 use tokio::sync::mpsc::{Receiver, Sender, channel};
 use tokio::sync::{Mutex, oneshot};
@@ -66,6 +66,11 @@ struct Behaviour {
     /// Automatically tries to map the external port to an internal address on
     /// the gateway.
     upnp: UpnpBehaviour,
+
+    /// Identifies the node to other peers.
+    ///
+    /// This is mainly used to send the external address of the node to other peers.
+    identify: identify::Behaviour,
 }
 
 /// This struct represents the Solipr network system.
@@ -88,8 +93,15 @@ impl SoliprNetwork {
         let mut swarm = SwarmBuilder::with_new_identity()
             .with_tokio()
             .with_quic()
-            .with_behaviour(|_| Behaviour {
+            .with_behaviour(|key| Behaviour {
                 upnp: UpnpBehaviour::default(),
+                identify: identify::Behaviour::new(
+                    identify::Config::new(
+                        format!("solipr/{}", env!("CARGO_PKG_VERSION")),
+                        key.public(),
+                    )
+                    .with_hide_listen_addrs(true),
+                ),
             })?
             .build();
         swarm.listen_on(CONFIG.peer_address.clone())?;
