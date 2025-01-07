@@ -14,11 +14,15 @@ serde = { version = "1.0.217", features = ["derive"] }
 tokio = { version = "1.42.0", features = [
     "rt-multi-thread",
     "macros",
-    "net",
-    "fs",
+    "signal",
 ] }
-home = "0.5.11"
-confy = "0.6.1"
+libp2p = { version = "0.54.1", features = ["tokio", "macros", "quic", "upnp"] }
+serde-inline-default = "0.2.3"
+directories = "5.0.1"
+lazy_static = "1.5.0"
+config = "0.15.4"
+axum = "0.8.1"
+anyhow = "1.0.95"
 
 [lints]
 workspace = true
