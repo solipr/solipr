@@ -11,7 +11,7 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use config::CONFIG;
-use daemon::SoliprDaemon;
+use daemon::{DaemonHandle, SoliprDaemon};
 use tokio::net::TcpListener;
 use tokio::{select, signal};
 
@@ -85,7 +85,7 @@ async fn main() -> anyhow::Result<()> {
 }
 
 /// Serves a simple "Hello, World!" message.
-async fn hello_world(State(daemon): State<Arc<SoliprDaemon>>) -> Result<String, AppError> {
+async fn hello_world(State(daemon): State<Arc<DaemonHandle>>) -> Result<String, AppError> {
     Ok(format!(
         "Hello, World!\nData folder: {}\nExternal addresses: {:#?}",
         CONFIG.data_folder.display(),
