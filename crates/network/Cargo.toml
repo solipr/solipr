@@ -1,0 +1,44 @@
+[package]
+name = "solipr-network"
+version = "0.0.1"
+description = "An utility crate to interact with the solipr network"
+repository = "https://github.com/solipr/solipr"
+readme = "README.md"
+license = "GPL-3.0-or-later"
+keywords = ["vcs"]
+categories = ["development-tools"]
+edition = "2021"
+
+[dependencies]
+serde = { version = "1.0.217", features = ["derive"] }
+tokio = { version = "1.42.0", features = [
+    "rt-multi-thread",
+    "macros",
+    "signal",
+    "fs",
+] }
+libp2p = { git = "https://github.com/libp2p/rust-libp2p.git", features = [
+    "tokio",
+    "macros",
+    "quic",
+    "identify",
+    "autonat",
+    "relay",
+    "noise",
+    "yamux",
+    "upnp",
+    "kad",
+] }
+config = "0.15.4"
+anyhow = "1.0.95"
+keyring = { version = "3.6.1", features = [
+    "apple-native",
+    "linux-native",
+    "windows-native",
+] }
+whoami = "1.5.2"
+rand = "0.8.5"
+solipr-config = { path = "../config" }
+
+# [lints]
+# workspace = true
