@@ -367,6 +367,26 @@ impl SoliprPeerLoop {
                     }
                 }
             }
+            SwarmEvent::OutgoingConnectionError {
+                peer_id: Some(peer_id),
+                error:
+                    DialError::WrongPeerId {
+                        endpoint: ConnectedPoint::Dialer { address, .. },
+                        ..
+                    },
+                ..
+            } => {
+                if address.is_public()
+                    && address.peer_id() == Some(*peer_id)
+                    && !PEER_CONFIG.bootstrap_addresses.contains(address)
+                {
+                    self.swarm.behaviour_mut().autonat.remove_server(peer_id);
+                    self.swarm
+                        .behaviour_mut()
+                        .kad
+                        .remove_address(peer_id, address);
+                }
+            }
             SwarmEvent::Behaviour(BehaviourEvent::Autonat(autonat::Event::StatusChanged {
                 new,
                 ..
