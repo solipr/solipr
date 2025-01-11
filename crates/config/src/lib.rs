@@ -10,8 +10,7 @@ use std::time::Duration;
 
 use config::{Config, Environment, File};
 use directories::ProjectDirs;
-use libp2p::{Multiaddr, PeerId};
-use libp2p::identity::Keypair;
+use libp2p::{Multiaddr};
 use libp2p::multiaddr::Protocol;
 use serde::Deserialize;
 use serde_inline_default::serde_inline_default;
