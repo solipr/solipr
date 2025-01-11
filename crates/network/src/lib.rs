@@ -6,16 +6,15 @@
 //!
 //! This is implemented using [libp2p](https://libp2p.io/).
 
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::HashSet;
 use std::io::ErrorKind;
-use std::path::PathBuf;
 use std::time::Duration;
 
 use address::MultiaddrExt;
 use anyhow::Context;
 use libp2p::autonat::NatStatus;
+use libp2p::core::ConnectedPoint;
 use libp2p::core::transport::ListenerId;
-use libp2p::core::{ConnectedPoint, Endpoint};
 use libp2p::futures::StreamExt;
 use libp2p::identity::Keypair;
 use libp2p::identity::ed25519::Keypair as Ed25519Keypair;
@@ -25,9 +24,7 @@ use libp2p::multiaddr::Protocol;
 use libp2p::relay::client as relay_client;
 use libp2p::swarm::{DialError, NetworkBehaviour, SwarmEvent};
 use libp2p::upnp::tokio as upnp_tokio;
-use libp2p::{
-    Multiaddr, PeerId, Swarm, SwarmBuilder, autonat, dcutr, identify, kad, noise, relay, yamux,
-};
+use libp2p::{Multiaddr, Swarm, SwarmBuilder, autonat, dcutr, identify, kad, noise, relay, yamux};
 use rand::seq::IteratorRandom;
 use solipr_config::{CONFIG, PEER_CONFIG};
 use tokio::fs::File;
