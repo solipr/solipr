@@ -169,6 +169,9 @@ impl SoliprPeer {
             .chain(PEER_CONFIG.bootstrap_addresses.iter())
         {
             if let Some(peer_id) = address.peer_id() {
+                if peer_id == *swarm.local_peer_id() {
+                    continue;
+                }
                 swarm.add_peer_address(peer_id, address.clone());
                 swarm
                     .behaviour_mut()
