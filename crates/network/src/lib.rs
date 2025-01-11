@@ -97,10 +97,13 @@ impl SoliprPeer {
             .with_relay_client(noise::Config::new, yamux::Config::default)?
             .with_behaviour(|key, relay_behaviour| {
                 Ok(Behaviour {
-                    identify: identify::Behaviour::new(identify::Config::new(
-                        format!("solipr/{}", env!("CARGO_PKG_VERSION")),
-                        key.public(),
-                    )),
+                    identify: identify::Behaviour::new(
+                        identify::Config::new(
+                            format!("solipr/{}", env!("CARGO_PKG_VERSION")),
+                            key.public(),
+                        )
+                        .with_hide_listen_addrs(true),
+                    ),
                     autonat: autonat::Behaviour::new(key.public().to_peer_id(), autonat::Config {
                         boot_delay: Duration::from_millis(100),
                         ..Default::default()
