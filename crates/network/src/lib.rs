@@ -25,7 +25,9 @@ use libp2p::multiaddr::Protocol;
 use libp2p::relay::client as relay_client;
 use libp2p::swarm::{DialError, NetworkBehaviour, SwarmEvent};
 use libp2p::upnp::tokio as upnp_tokio;
-use libp2p::{Multiaddr, PeerId, Swarm, SwarmBuilder, autonat, identify, kad, noise, relay, yamux};
+use libp2p::{
+    Multiaddr, PeerId, Swarm, SwarmBuilder, autonat, dcutr, identify, kad, noise, relay, yamux,
+};
 use rand::seq::IteratorRandom;
 use solipr_config::{CONFIG, PEER_CONFIG};
 use tokio::fs::File;
@@ -51,6 +53,9 @@ struct Behaviour {
 
     /// A behaviour used to use an other peer as a relay server.
     relay_client: relay_client::Behaviour,
+
+    /// A behaviour used to make direct connection using relays.
+    dcutr: dcutr::Behaviour,
 
     /// A behaviour used to open ports on the router.
     upnp: upnp_tokio::Behaviour,
@@ -113,6 +118,7 @@ impl SoliprPeer {
                         relay::Config::default(),
                     ),
                     relay_client: relay_behaviour,
+                    dcutr: dcutr::Behaviour::new(key.public().to_peer_id()),
                     upnp: upnp_tokio::Behaviour::default(),
                     kad: kad::Behaviour::new(
                         key.public().to_peer_id(),
