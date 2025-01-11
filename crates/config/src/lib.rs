@@ -10,7 +10,7 @@ use std::time::Duration;
 
 use config::{Config, Environment, File};
 use directories::ProjectDirs;
-use libp2p::{Multiaddr};
+use libp2p::Multiaddr;
 use libp2p::multiaddr::Protocol;
 use serde::Deserialize;
 use serde_inline_default::serde_inline_default;
@@ -113,9 +113,12 @@ pub struct PeerConfig {
     pub keypair: Option<[u8; 64]>,
 
     /// The addresses of the peer used to join the network for the first time.
-    #[serde_inline_default(HashSet::from_iter([
-        "/ip4/79.90.77.127/udp/2729/quic-v1/p2p/12D3KooWRuA21w8ZPw8berCXTPAHu4Fsk2kvGPQ4b8BbFyY4MfbV".parse().unwrap()
-    ]))]
+    #[serde_inline_default({
+        #[expect(clippy::unwrap_used, reason = "the addresses are valid")]
+        HashSet::from_iter([
+            "/ip4/79.90.77.127/udp/2729/quic-v1/p2p/12D3KooWRuA21w8ZPw8berCXTPAHu4Fsk2kvGPQ4b8BbFyY4MfbV".parse().unwrap()
+        ])
+    })]
     pub bootstrap_addresses: HashSet<Multiaddr>,
 
     /// The maximum number of other peers address to store.
