@@ -438,7 +438,7 @@ impl SoliprPeer {
                     let _ = self.0.send(HashSet::new());
                     return None;
                 };
-                Some(Box::new(WaitForQuery(self.0, query)))
+                Some(Box::new(WaitForQuery(self.0, query, HashSet::new())))
             }
         }
 
