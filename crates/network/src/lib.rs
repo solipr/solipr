@@ -6,35 +6,83 @@
 //!
 //! This is implemented using [libp2p](https://libp2p.io/).
 
-use std::collections::HashSet;
+use std::collections::{HashSet, VecDeque};
 use std::io::ErrorKind;
 use std::time::Duration;
 
 use address::MultiaddrExt;
-use anyhow::Context;
+use anyhow::{Context, bail};
+pub use libp2p::PeerId;
 use libp2p::autonat::NatStatus;
 use libp2p::core::ConnectedPoint;
 use libp2p::core::transport::ListenerId;
 use libp2p::futures::StreamExt;
 use libp2p::identity::Keypair;
 use libp2p::identity::ed25519::Keypair as Ed25519Keypair;
-use libp2p::kad::Mode;
 use libp2p::kad::store::MemoryStore;
+use libp2p::kad::{Mode, ProgressStep, QueryId, QueryResult, RecordKey};
 use libp2p::multiaddr::Protocol;
 use libp2p::relay::client as relay_client;
 use libp2p::swarm::{DialError, NetworkBehaviour, SwarmEvent};
 use libp2p::upnp::tokio as upnp_tokio;
-use libp2p::{Multiaddr, Swarm, SwarmBuilder, autonat, dcutr, identify, kad, noise, relay, yamux};
+use libp2p::{
+    Multiaddr, Swarm, SwarmBuilder, autonat, dcutr, identify, kad, noise, relay, request_response,
+    yamux,
+};
 use rand::seq::IteratorRandom;
 use solipr_config::{CONFIG, PEER_CONFIG};
 use tokio::fs::File;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::select;
 use tokio::sync::mpsc::{Receiver, Sender, channel};
+use tokio::sync::oneshot;
 use tokio::task::JoinHandle;
 use tokio::time::Instant;
 
 mod address;
+
+/// A command that can be sent to the peer system and return a result.
+trait PeerCommand: Sized + Send {
+    /// The type of the result of the command.
+    type Output: Send;
+
+    /// Initializes the command before sending it to the peer loop.
+    ///
+    /// This function use used to give to the command a reference to the
+    /// [`SoliprPeer`] and a [Sender] to send the result of the command.
+    ///
+    /// Returns the command to send to the peer loop.
+    fn initialize(self, sender: oneshot::Sender<Self::Output>) -> Box<dyn RawPeerCommand>;
+}
+
+/// A command that can be be processed by the peer loop.
+trait RawPeerCommand: Send {
+    /// Starts the execution of the command in the peer loop.
+    ///
+    /// Returns `None` if the execution of the command is finished.
+    /// Returns the command to wait for an event from the peer loop,
+    /// the next events will be passed to the [`RawPeerCommand::on_event`]
+    /// function.
+    ///
+    /// This function should not block or execute other commands
+    /// because it will block the execution of the peer loop.
+    fn start(self: Box<Self>, swarm: &mut Swarm<Behaviour>) -> Option<Box<dyn RawPeerCommand>>;
+
+    /// Executed for each peer event in the peer loop when the command is
+    /// running.
+    ///
+    /// Returns `None` if the execution of the command is finished.
+    ///
+    /// This function should not block or execute other commands
+    /// because it will block the execution of the peer loop.
+    fn on_event(
+        self: Box<Self>,
+        _swarm: &mut Swarm<Behaviour>,
+        _event: &SwarmEvent<BehaviourEvent>,
+    ) -> Option<Box<dyn RawPeerCommand>> {
+        unreachable!();
+    }
+}
 
 /// The behaviour used by the [Swarm] in [`SoliprPeer`].
 #[derive(NetworkBehaviour)]
@@ -63,6 +111,9 @@ struct Behaviour {
 
 /// The local peer that connect to the solipr network.
 pub struct SoliprPeer {
+    /// The [PeerId] of the [SoliprPeer].
+    peer_id: PeerId,
+
     /// A [Sender] to send a stop signal to the internal loop.
     stop_sender: Sender<()>,
 
@@ -71,6 +122,12 @@ pub struct SoliprPeer {
     /// This is used to wait for the internal loop to finish in the
     /// [`Self::stop`] function.
     loop_handle: JoinHandle<()>,
+
+    /// The [Sender] used to send [`PeerCommand`] to the peer loop.
+    command_sender: Sender<Box<dyn RawPeerCommand>>,
+
+    /// A [HashSet] of the keys that are provided by the [SoliprPeer].
+    provided_keys: HashSet<Vec<u8>>,
 }
 
 impl SoliprPeer {
@@ -79,7 +136,7 @@ impl SoliprPeer {
         if let Some(mut bytes) = PEER_CONFIG.keypair {
             return Ok(Ed25519Keypair::try_from_bytes(&mut bytes)?.into());
         }
-        let entry = keyring::Entry::new("solipr", &whoami::username())?;
+        let entry = keyring::Entry::new("solipr-peer", &whoami::username())?;
         match entry.get_secret() {
             Ok(mut bytes) => Ok(Ed25519Keypair::try_from_bytes(&mut bytes)?.into()),
             Err(keyring::Error::NoEntry) => {
@@ -160,6 +217,7 @@ impl SoliprPeer {
     /// Returns an error if the peer cannot be started.
     pub async fn start() -> anyhow::Result<Self> {
         let mut swarm = Self::build_swarm()?;
+        let peer_id = *swarm.local_peer_id();
         for address in &PEER_CONFIG.listen_addresses {
             swarm.listen_on(address.clone())?;
         }
@@ -184,12 +242,14 @@ impl SoliprPeer {
             }
         }
         let (stop_sender, stop_receiver) = channel(1);
+        let (command_sender, command_receiver) = channel(1);
         let solipr_loop = SoliprPeerLoop {
             swarm,
             stop_receiver,
             known_addresses,
             relay_listener: None,
             relay_start_at: Instant::now(),
+            command_receiver,
         };
         let loop_handle = tokio::spawn(async move {
             if let Err(error) = solipr_loop.internal_loop().await {
@@ -197,8 +257,11 @@ impl SoliprPeer {
             }
         });
         Ok(Self {
+            peer_id,
             stop_sender,
             loop_handle,
+            command_sender,
+            provided_keys: HashSet::new(),
         })
     }
 
@@ -212,9 +275,119 @@ impl SoliprPeer {
         self.stop_sender
             .send(())
             .await
-            .context("network loop is not running")?;
+            .context("peer loop is not running")?;
         self.loop_handle.await?;
         Ok(())
+    }
+
+    /// Execute a command in the peer system and return the result.
+    async fn command<C: PeerCommand>(&self, command: C) -> anyhow::Result<C::Output> {
+        let (sender, receiver) = oneshot::channel();
+        let command = command.initialize(sender);
+        if self.command_sender.send(command).await.is_err() {
+            bail!("peer loop is not running");
+        }
+        receiver
+            .await
+            .context("peer command was dropped before completion")
+    }
+
+    /// Returns the [PeerId] of the [`SoliprPeer`].
+    pub fn id(&self) -> PeerId {
+        self.peer_id
+    }
+
+    /// Advertise the solipr network that this node provide the given key.
+    pub async fn provide_key(&mut self, key: impl AsRef<[u8]>) -> anyhow::Result<bool> {
+        /// The command used for this function.
+        pub struct Command(RecordKey);
+
+        /// The raw command generated by [Command].
+        struct RawCommand(oneshot::Sender<bool>, RecordKey);
+
+        /// The command that wait the query to be completed.
+        struct WaitForQuery(oneshot::Sender<bool>, QueryId);
+
+        impl PeerCommand for Command {
+            type Output = bool;
+
+            fn initialize(self, sender: oneshot::Sender<Self::Output>) -> Box<dyn RawPeerCommand> {
+                Box::new(RawCommand(sender, self.0))
+            }
+        }
+
+        impl RawPeerCommand for RawCommand {
+            fn start(
+                self: Box<Self>,
+                swarm: &mut Swarm<Behaviour>,
+            ) -> Option<Box<dyn RawPeerCommand>> {
+                let Ok(query) = swarm.behaviour_mut().kad.start_providing(self.1) else {
+                    let _ = self.0.send(false);
+                    return None;
+                };
+                Some(Box::new(WaitForQuery(self.0, query)))
+            }
+        }
+
+        impl RawPeerCommand for WaitForQuery {
+            fn start(
+                self: Box<Self>,
+                _swarm: &mut Swarm<Behaviour>,
+            ) -> Option<Box<dyn RawPeerCommand>> {
+                unreachable!();
+            }
+
+            fn on_event(
+                self: Box<Self>,
+                _swarm: &mut Swarm<Behaviour>,
+                event: &SwarmEvent<BehaviourEvent>,
+            ) -> Option<Box<dyn RawPeerCommand>> {
+                if let SwarmEvent::Behaviour(BehaviourEvent::Kad(
+                    kad::Event::OutboundQueryProgressed {
+                        id,
+                        result: QueryResult::StartProviding(result),
+                        step: ProgressStep { last: true, .. },
+                        ..
+                    },
+                )) = event
+                {
+                    if *id == self.1 {
+                        match result {
+                            Ok(_) => {
+                                let _ = self.0.send(true);
+                            }
+                            Err(_) => {
+                                let _ = self.0.send(false);
+                            }
+                        }
+                        return None;
+                    }
+                }
+                Some(self)
+            }
+        }
+
+        let result = self.command(Command(RecordKey::new(&key.as_ref()))).await?;
+        if result {
+            self.provided_keys.insert(key.as_ref().to_vec());
+        }
+        Ok(result)
+    }
+
+    /// Stop providing the given key.
+    pub async fn stop_providing_key(&mut self, key: impl AsRef<[u8]>) -> anyhow::Result<()> {
+        todo!()
+    }
+
+    /// Returns the keys that are currently provided.
+    pub fn provided_keys(&mut self) -> &HashSet<Vec<u8>> {
+        &self.provided_keys
+    }
+
+    /// Returns the [PeerId] of the [`SoliprPeer`] that currently provides the
+    /// given key.
+    pub async fn find_providers(&self, key: impl AsRef<[u8]>) -> anyhow::Result<HashSet<PeerId>> {
+        todo!()
     }
 }
 
@@ -224,6 +397,7 @@ struct SoliprPeerLoop {
     known_addresses: HashSet<Multiaddr>,
     relay_listener: Option<ListenerId>,
     relay_start_at: Instant,
+    command_receiver: Receiver<Box<dyn RawPeerCommand>>,
 }
 
 impl SoliprPeerLoop {
@@ -243,14 +417,27 @@ impl SoliprPeerLoop {
 
     /// The internal loop of the [`SoliprPeer`].
     async fn internal_loop(mut self) -> anyhow::Result<()> {
+        let mut current_commands: VecDeque<Box<dyn RawPeerCommand>> = VecDeque::new();
         let mut global_update_timer = tokio::time::interval(Duration::from_secs(1));
         loop {
             select! {
                 _ = self.stop_receiver.recv() => break,
                 event = self.swarm.select_next_some() => {
+                    for _ in 0..current_commands.len() {
+                        if let Some(command) = current_commands.pop_front() {
+                            if let Some(command) = command.on_event(&mut self.swarm, &event) {
+                                current_commands.push_back(command);
+                            }
+                        }
+                    }
                     self.update_known_addresses(&event).await?;
                     self.update_behaviours_addresses(&event).await?;
-                    println!("Network event: {event:?}");
+                }
+                command = self.command_receiver.recv() => {
+                    let Some(command) = command else { break; };
+                    if let Some(command) = command.start(&mut self.swarm) {
+                        current_commands.push_back(command);
+                    }
                 }
                 _ = global_update_timer.tick() => {
                     self.update_relay_connection().await?;
