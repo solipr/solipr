@@ -126,6 +126,6 @@ pub struct PeerConfig {
     pub max_stored_addresses: usize,
 
     /// The time to wait before marking a relay as dead.
-    #[serde_inline_default(Duration::from_secs(10))]
+    #[serde_inline_default(Duration::from_secs(5))]
     pub relay_timeout: Duration,
 }
