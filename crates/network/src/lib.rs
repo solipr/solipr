@@ -28,7 +28,7 @@ use libp2p::upnp::tokio as upnp_tokio;
 use libp2p::{Multiaddr, Swarm, SwarmBuilder, autonat, dcutr, identify, kad, noise, relay, yamux};
 use rand::seq::IteratorRandom;
 use solipr_config::{CONFIG, PEER_CONFIG};
-use tokio::fs::File;
+use tokio::fs::{self, File};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::select;
 use tokio::sync::mpsc::{Receiver, Sender, channel};
@@ -589,6 +589,7 @@ impl SoliprPeerLoop {
             _ => {}
         };
         if need_save {
+            fs::create_dir_all(&CONFIG.data_folder).await?;
             let mut file = File::create(CONFIG.data_folder.join("known_addresses")).await?;
             for address in self.known_addresses.iter() {
                 file.write_all(format!("{address}\n").as_bytes()).await?;
