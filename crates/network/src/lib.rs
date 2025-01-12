@@ -512,7 +512,7 @@ impl SoliprPeerLoop {
             select! {
                 _ = self.stop_receiver.recv() => break,
                 event = self.swarm.select_next_some() => {
-                    println!("{event:?}");
+                    // println!("{event:?}");
                     for _ in 0..current_commands.len() {
                         if let Some(command) = current_commands.pop_front() {
                             if let Some(command) = command.on_event(&mut self.swarm, &event) {
@@ -668,6 +668,7 @@ impl SoliprPeerLoop {
                 new,
                 ..
             })) => {
+                println!("Changed mode: {new:?}");
                 self.swarm.behaviour_mut().kad.set_mode(Some(match new {
                     NatStatus::Public(_) => Mode::Server,
                     _ => Mode::Client,
