@@ -434,10 +434,7 @@ impl SoliprPeer {
                 self: Box<Self>,
                 swarm: &mut Swarm<Behaviour>,
             ) -> Option<Box<dyn RawPeerCommand>> {
-                let Ok(query) = swarm.behaviour_mut().kad.start_providing(self.1) else {
-                    let _ = self.0.send(HashSet::new());
-                    return None;
-                };
+                let query = swarm.behaviour_mut().kad.get_providers(self.1);
                 Some(Box::new(WaitForQuery(self.0, query, HashSet::new())))
             }
         }
