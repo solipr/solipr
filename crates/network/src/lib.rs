@@ -512,7 +512,7 @@ impl SoliprPeerLoop {
             select! {
                 _ = self.stop_receiver.recv() => break,
                 event = self.swarm.select_next_some() => {
-                    println!("{event:#?}");
+                    println!("{event:?}");
                     for _ in 0..current_commands.len() {
                         if let Some(command) = current_commands.pop_front() {
                             if let Some(command) = command.on_event(&mut self.swarm, &event) {
