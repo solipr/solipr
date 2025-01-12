@@ -401,7 +401,9 @@ impl SoliprPeer {
             }
         }
 
-        self.command(Command(RecordKey::new(&key.as_ref()))).await
+        self.command(Command(RecordKey::new(&key.as_ref()))).await?;
+        self.provided_keys.remove(&key.as_ref().to_vec());
+        Ok(())
     }
 
     /// Returns the keys that are currently provided.
