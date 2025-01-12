@@ -25,10 +25,7 @@ use libp2p::multiaddr::Protocol;
 use libp2p::relay::client as relay_client;
 use libp2p::swarm::{DialError, NetworkBehaviour, SwarmEvent};
 use libp2p::upnp::tokio as upnp_tokio;
-use libp2p::{
-    Multiaddr, Swarm, SwarmBuilder, autonat, dcutr, identify, kad, noise, relay, request_response,
-    yamux,
-};
+use libp2p::{Multiaddr, Swarm, SwarmBuilder, autonat, dcutr, identify, kad, noise, relay, yamux};
 use rand::seq::IteratorRandom;
 use solipr_config::{CONFIG, PEER_CONFIG};
 use tokio::fs::File;
@@ -165,6 +162,7 @@ impl SoliprPeer {
                     ),
                     autonat: autonat::Behaviour::new(key.public().to_peer_id(), autonat::Config {
                         boot_delay: Duration::from_millis(100),
+                        retry_interval: Duration::from_millis(100),
                         ..Default::default()
                     }),
                     relay_server: relay::Behaviour::new(
@@ -402,7 +400,7 @@ impl SoliprPeer {
         }
 
         self.command(Command(RecordKey::new(&key.as_ref()))).await?;
-        self.provided_keys.remove(&key.as_ref().to_vec());
+        self.provided_keys.remove(key.as_ref());
         Ok(())
     }
 
