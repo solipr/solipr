@@ -116,7 +116,7 @@ pub struct PeerConfig {
     #[serde_inline_default({
         #[expect(clippy::unwrap_used, reason = "the addresses are valid")]
         HashSet::from_iter([
-            "/ip4/79.90.77.127/udp/2729/quic-v1/p2p/12D3KooWRuA21w8ZPw8berCXTPAHu4Fsk2kvGPQ4b8BbFyY4MfbV".parse().unwrap()
+            "/ip4/79.90.77.127/udp/2729/quic-v1/p2p/12D3KooWNJ1b4VfWLk2K7gJg4dDuHpbhK9v8JwoHHYc5iVfGDHmQ".parse().unwrap()
         ])
     })]
     pub bootstrap_addresses: HashSet<Multiaddr>,
