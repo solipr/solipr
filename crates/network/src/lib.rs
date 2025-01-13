@@ -25,7 +25,7 @@ use libp2p::multiaddr::Protocol;
 use libp2p::relay::client as relay_client;
 use libp2p::swarm::{DialError, NetworkBehaviour, SwarmEvent};
 use libp2p::upnp::tokio as upnp_tokio;
-use libp2p::{Multiaddr, Swarm, SwarmBuilder, autonat, identify, kad, noise, relay, yamux};
+use libp2p::{Multiaddr, Swarm, SwarmBuilder, autonat, identify, kad, noise, relay, tcp, yamux};
 use rand::seq::IteratorRandom;
 use solipr_config::{CONFIG, PEER_CONFIG};
 use tokio::fs::{self, File};
@@ -146,7 +146,11 @@ impl SoliprPeer {
     fn build_swarm() -> anyhow::Result<Swarm<Behaviour>> {
         let mut swarm = SwarmBuilder::with_existing_identity(Self::load_keypair()?)
             .with_tokio()
-            .with_quic()
+            .with_tcp(
+                tcp::Config::new(),
+                noise::Config::new,
+                yamux::Config::default,
+            )?
             .with_relay_client(noise::Config::new, yamux::Config::default)?
             .with_behaviour(|key, relay_behaviour| {
                 Ok(Behaviour {
@@ -538,6 +542,28 @@ impl SoliprPeerLoop {
         &mut self,
         event: &SwarmEvent<BehaviourEvent>,
     ) -> anyhow::Result<()> {
+        // TEMP
+        match event {
+            SwarmEvent::ConnectionEstablished {
+                peer_id,
+                connection_id,
+                ..
+            } => {
+                println!("Connection to {peer_id} ({connection_id}) established");
+            }
+            SwarmEvent::ConnectionClosed {
+                peer_id,
+                connection_id,
+                ..
+            } => {
+                println!("Connection to {peer_id} ({connection_id}) closed");
+            }
+            SwarmEvent::ExternalAddrConfirmed { address } => {
+                println!("External address confirmed: {address}");
+            }
+            _ => {}
+        }
+
         let mut need_save = false;
         match event {
             SwarmEvent::ConnectionEstablished {

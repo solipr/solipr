@@ -1,6 +1,5 @@
 //! Just a test
 
-use libp2p::PeerId;
 use solipr_network::SoliprPeer;
 use tokio::io::{AsyncBufReadExt, BufReader, stdin};
 

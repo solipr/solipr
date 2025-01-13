@@ -99,8 +99,7 @@ pub struct PeerConfig {
     #[serde_inline_default(
         HashSet::from_iter([Multiaddr::empty()
             .with(Protocol::Ip4(Ipv4Addr::UNSPECIFIED))
-            .with(Protocol::Udp(2729))
-            .with(Protocol::QuicV1)])
+            .with(Protocol::Tcp(27918))])
     )]
     pub listen_addresses: HashSet<Multiaddr>,
 
@@ -113,12 +112,7 @@ pub struct PeerConfig {
     pub keypair: Option<[u8; 64]>,
 
     /// The addresses of the peer used to join the network for the first time.
-    #[serde_inline_default({
-        #[expect(clippy::unwrap_used, reason = "the addresses are valid")]
-        HashSet::from_iter([
-            "/ip4/79.90.77.127/udp/2729/quic-v1/p2p/12D3KooWNJ1b4VfWLk2K7gJg4dDuHpbhK9v8JwoHHYc5iVfGDHmQ".parse().unwrap()
-        ])
-    })]
+    #[serde_inline_default(HashSet::new())]
     pub bootstrap_addresses: HashSet<Multiaddr>,
 
     /// The maximum number of other peers address to store.

@@ -32,10 +32,7 @@ impl MultiaddrExt for Multiaddr {
             Some(Protocol::Dns4(_)) => {}
             _ => return false,
         };
-        if !matches!(protocols.next(), Some(Protocol::Udp(_))) {
-            return false;
-        }
-        if !matches!(protocols.next(), Some(Protocol::QuicV1)) {
+        if !matches!(protocols.next(), Some(Protocol::Tcp(_))) {
             return false;
         }
         if !matches!(protocols.next(), Some(Protocol::P2p(_))) {
