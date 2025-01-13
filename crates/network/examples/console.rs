@@ -1,4 +1,5 @@
-//! Just a test
+//! A simple example that runs a [`SoliprPeer`] with a simple cli interface to
+//! interact with the network.
 
 use solipr_network::SoliprPeer;
 use tokio::io::{AsyncBufReadExt, BufReader, stdin};
