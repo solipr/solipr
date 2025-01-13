@@ -414,7 +414,8 @@ impl SoliprPeer {
     }
 
     /// Returns the keys that are currently provided.
-    pub fn provided_keys(&mut self) -> &HashSet<Vec<u8>> {
+    #[must_use]
+    pub const fn provided_keys(&self) -> &HashSet<Vec<u8>> {
         &self.provided_keys
     }
 
