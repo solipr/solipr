@@ -42,7 +42,7 @@ async fn main() -> anyhow::Result<()> {
                     } else {
                         println!("Found peers:");
                         for peer in peers {
-                            println!("- {}", peer);
+                            println!("- {peer}");
                         }
                     }
                 }

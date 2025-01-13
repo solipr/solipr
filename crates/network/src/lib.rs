@@ -34,7 +34,7 @@ use tokio::select;
 use tokio::sync::mpsc::{Receiver, Sender, channel};
 use tokio::sync::oneshot;
 use tokio::task::JoinHandle;
-use tokio::time::Instant;
+use tokio::time::{Instant, interval};
 
 mod address;
 
@@ -105,7 +105,7 @@ struct Behaviour {
 
 /// The local peer that connect to the solipr network.
 pub struct SoliprPeer {
-    /// The [PeerId] of the [SoliprPeer].
+    /// The [`PeerId`] of the [`SoliprPeer`].
     peer_id: PeerId,
 
     /// A [Sender] to send a stop signal to the internal loop.
@@ -120,7 +120,7 @@ pub struct SoliprPeer {
     /// The [Sender] used to send [`PeerCommand`] to the peer loop.
     command_sender: Sender<Box<dyn RawPeerCommand>>,
 
-    /// A [HashSet] of the keys that are provided by the [SoliprPeer].
+    /// A [`HashSet`] of the keys that are provided by the [`SoliprPeer`].
     provided_keys: HashSet<Vec<u8>>,
 }
 
@@ -142,7 +142,7 @@ impl SoliprPeer {
         }
     }
 
-    /// Build the [Swarm] of the [SoliprPeer].
+    /// Build the [Swarm] of the [`SoliprPeer`].
     fn build_swarm() -> anyhow::Result<Swarm<Behaviour>> {
         let mut swarm = SwarmBuilder::with_existing_identity(Self::load_keypair()?)
             .with_tokio()
@@ -290,13 +290,18 @@ impl SoliprPeer {
             .context("peer command was dropped before completion")
     }
 
-    /// Returns the [PeerId] of the [`SoliprPeer`].
-    pub fn id(&self) -> PeerId {
+    /// Returns the [`PeerId`] of the [`SoliprPeer`].
+    #[must_use]
+    pub const fn id(&self) -> PeerId {
         self.peer_id
     }
 
     /// Advertise the solipr network that this node provide the given key.
-    pub async fn provide_key(&mut self, key: impl AsRef<[u8]>) -> anyhow::Result<bool> {
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the internal loop is not running.
+    pub async fn provide_key(&mut self, key: impl AsRef<[u8]> + Send) -> anyhow::Result<bool> {
         /// The command used for this function.
         pub struct Command(RecordKey);
 
@@ -373,7 +378,11 @@ impl SoliprPeer {
     }
 
     /// Stop providing the given key.
-    pub async fn stop_providing_key(&mut self, key: impl AsRef<[u8]>) -> anyhow::Result<()> {
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the internal loop is not running.
+    pub async fn stop_providing_key(&mut self, key: impl AsRef<[u8]> + Send) -> anyhow::Result<()> {
         /// The command used for this function.
         pub struct Command(RecordKey);
 
@@ -409,9 +418,16 @@ impl SoliprPeer {
         &self.provided_keys
     }
 
-    /// Returns the [PeerId] of the [`SoliprPeer`] that currently provides the
+    /// Returns the [`PeerId`] of the [`SoliprPeer`] that currently provides the
     /// given key.
-    pub async fn find_providers(&self, key: impl AsRef<[u8]>) -> anyhow::Result<HashSet<PeerId>> {
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the internal loop is not running.
+    pub async fn find_providers(
+        &self,
+        key: impl AsRef<[u8]> + Send,
+    ) -> anyhow::Result<HashSet<PeerId>> {
         /// The command used for this function.
         pub struct Command(RecordKey);
 
@@ -480,12 +496,30 @@ impl SoliprPeer {
     }
 }
 
+/// The internal loop of the [`SoliprPeer`].
 struct SoliprPeerLoop {
+    /// The [`Swarm`] of the [`SoliprPeer`].
     swarm: Swarm<Behaviour>,
+
+    /// The receiver of the stop signal.
+    ///
+    /// Used to stop the loop when needed.
     stop_receiver: Receiver<()>,
+
+    /// The known addresses of the [`SoliprPeer`].
+    ///
+    /// This is used to get a random address to connect to for the relay.
     known_addresses: HashSet<Multiaddr>,
+
+    /// The listener of the relay.
     relay_listener: Option<ListenerId>,
+
+    /// The start time of the relay connection.
+    ///
+    /// Used to close the relay connection if the relay don't work.
     relay_start_at: Instant,
+
+    /// The receiver of the commands to execute in the loop.
     command_receiver: Receiver<Box<dyn RawPeerCommand>>,
 }
 
@@ -507,7 +541,7 @@ impl SoliprPeerLoop {
     /// The internal loop of the [`SoliprPeer`].
     async fn internal_loop(mut self) -> anyhow::Result<()> {
         let mut current_commands: VecDeque<Box<dyn RawPeerCommand>> = VecDeque::new();
-        let mut global_update_timer = tokio::time::interval(Duration::from_secs(1));
+        let mut global_update_timer = interval(Duration::from_secs(1));
         loop {
             select! {
                 _ = self.stop_receiver.recv() => break,
@@ -521,7 +555,7 @@ impl SoliprPeerLoop {
                         }
                     }
                     self.update_known_addresses(&event).await?;
-                    self.update_behaviours_addresses(&event).await?;
+                    self.update_behaviours_addresses(&event);
                 }
                 command = self.command_receiver.recv() => {
                     let Some(command) = command else { break; };
@@ -530,7 +564,7 @@ impl SoliprPeerLoop {
                     }
                 }
                 _ = global_update_timer.tick() => {
-                    self.update_relay_connection().await?;
+                    self.update_relay_connection()?;
                 }
             }
         }
@@ -542,29 +576,11 @@ impl SoliprPeerLoop {
         &mut self,
         event: &SwarmEvent<BehaviourEvent>,
     ) -> anyhow::Result<()> {
-        // TEMP
-        match event {
-            SwarmEvent::ConnectionEstablished {
-                peer_id,
-                connection_id,
-                ..
-            } => {
-                println!("Connection to {peer_id} ({connection_id}) established");
-            }
-            SwarmEvent::ConnectionClosed {
-                peer_id,
-                connection_id,
-                ..
-            } => {
-                println!("Connection to {peer_id} ({connection_id}) closed");
-            }
-            SwarmEvent::ExternalAddrConfirmed { address } => {
-                println!("External address confirmed: {address}");
-            }
-            _ => {}
-        }
-
         let mut need_save = false;
+        #[expect(
+            clippy::wildcard_enum_match_arm,
+            reason = "we want to check only specific events"
+        )]
         match event {
             SwarmEvent::ConnectionEstablished {
                 concurrent_dial_errors,
@@ -614,7 +630,7 @@ impl SoliprPeerLoop {
             println!("Known addresses updated:");
             fs::create_dir_all(&CONFIG.data_folder).await?;
             let mut file = File::create(CONFIG.data_folder.join("known_addresses")).await?;
-            for address in self.known_addresses.iter() {
+            for address in &self.known_addresses {
                 file.write_all(format!("{address}\n").as_bytes()).await?;
                 println!(" - {address}");
             }
@@ -624,10 +640,11 @@ impl SoliprPeerLoop {
     }
 
     /// Update the addresses used by the beaviours with the given event.
-    async fn update_behaviours_addresses(
-        &mut self,
-        event: &SwarmEvent<BehaviourEvent>,
-    ) -> anyhow::Result<()> {
+    fn update_behaviours_addresses(&mut self, event: &SwarmEvent<BehaviourEvent>) {
+        #[expect(
+            clippy::wildcard_enum_match_arm,
+            reason = "we want to check only specific events"
+        )]
         match event {
             SwarmEvent::Behaviour(BehaviourEvent::Identify(identify::Event::Received {
                 peer_id,
@@ -635,7 +652,7 @@ impl SoliprPeerLoop {
                 ..
             })) => {
                 if !info.protocol_version.starts_with("solipr/") {
-                    return Ok(());
+                    return;
                 }
                 for address in &info.listen_addrs {
                     if address.is_public() && address.peer_id() == Some(*peer_id) {
@@ -700,11 +717,10 @@ impl SoliprPeerLoop {
             }
             _ => (),
         }
-        Ok(())
     }
 
     /// Update the connection to a relay server.
-    async fn update_relay_connection(&mut self) -> anyhow::Result<()> {
+    fn update_relay_connection(&mut self) -> anyhow::Result<()> {
         match self.swarm.behaviour().autonat.nat_status() {
             NatStatus::Private => match &self.relay_listener {
                 None => {

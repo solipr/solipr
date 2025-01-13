@@ -25,5 +25,5 @@ whoami = "1.5.2"
 rand = "0.8.5"
 solipr-config = { path = "../config" }
 
-# [lints]
-# workspace = true
+[lints]
+workspace = true
