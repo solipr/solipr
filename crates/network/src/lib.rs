@@ -161,11 +161,14 @@ impl SoliprPeer {
                         )
                         .with_hide_listen_addrs(true),
                     ),
-                    autonat: autonat::Behaviour::new(key.public().to_peer_id(), autonat::Config {
-                        boot_delay: Duration::from_millis(100),
-                        retry_interval: Duration::from_millis(100),
-                        ..Default::default()
-                    }),
+                    autonat: autonat::Behaviour::new(
+                        key.public().to_peer_id(),
+                        autonat::Config {
+                            boot_delay: Duration::from_millis(100),
+                            retry_interval: Duration::from_millis(100),
+                            ..Default::default()
+                        },
+                    ),
                     relay_server: relay::Behaviour::new(
                         key.public().to_peer_id(),
                         relay::Config::default(),
