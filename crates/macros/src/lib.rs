@@ -27,7 +27,8 @@ pub fn export_fn(_: TokenStream, item: TokenStream) -> TokenStream {
             #[no_mangle]
             extern "C" fn #extern_name(ptr: *mut u8, len: usize) -> u64 {
                 let slice = unsafe { ::std::slice::from_raw_parts_mut(ptr, len) };
-                let args: (#args_type) = ::solipr_plugin::bincode::deserialize(slice).unwrap();
+                let args: (#args_type) =
+                    ::solipr_plugin::guest::__private::bincode::deserialize(slice).unwrap();
                 if len != 0 {
                     unsafe {
                         ::std::alloc::dealloc(ptr, ::std::alloc::Layout::array::<u8>(len).unwrap())
@@ -35,7 +36,7 @@ pub fn export_fn(_: TokenStream, item: TokenStream) -> TokenStream {
                 }
 
                 let value = &#intern_name(#call);
-                let len: usize = ::solipr_plugin::bincode::serialized_size(value)
+                let len: usize = ::solipr_plugin::guest::__private::bincode::serialized_size(value)
                     .unwrap()
                     .try_into()
                     .unwrap();
@@ -47,7 +48,7 @@ pub fn export_fn(_: TokenStream, item: TokenStream) -> TokenStream {
                     }
                 };
                 let slice = unsafe { std::slice::from_raw_parts_mut(ptr, len) };
-                ::solipr_plugin::bincode::serialize_into(slice, value).unwrap();
+                ::solipr_plugin::guest::__private::bincode::serialize_into(slice, value).unwrap();
                 ((ptr as u64) << 32) | (len as u64)
             }
         )
@@ -88,7 +89,7 @@ pub fn import_fn(_: TokenStream, item: TokenStream) -> TokenStream {
         #intern_attrs
         #intern_vis fn #intern_name(#intern_inputs) #intern_output {
             let value = &(#inputs_tuple);
-            let len: usize = ::solipr_plugin::bincode::serialized_size(value)
+            let len: usize = ::solipr_plugin::guest::__private::bincode::serialized_size(value)
                 .unwrap()
                 .try_into()
                 .unwrap();
@@ -100,7 +101,7 @@ pub fn import_fn(_: TokenStream, item: TokenStream) -> TokenStream {
                 }
             };
             let slice = unsafe { std::slice::from_raw_parts_mut(ptr, len) };
-            ::solipr_plugin::bincode::serialize_into(slice, value).unwrap();
+            ::solipr_plugin::guest::__private::bincode::serialize_into(slice, value).unwrap();
             let value = unsafe { #extern_name(ptr, len) };
             if len != 0 {
                 unsafe {
@@ -175,7 +176,7 @@ pub fn host_fn_registry(_: TokenStream, item: TokenStream) -> TokenStream {
         #vis static #ident: [(
             &'static str,
             for<'store> fn(
-                ::solipr_plugin::__private::PluginCtx<'store, #ty>,
+                ::solipr_plugin::host::__private::PluginCtx<'store, #ty>,
                 u32,
                 u32,
             ) -> Box<dyn ::std::future::Future<Output = u64> + Send + 'store>,
@@ -219,7 +220,7 @@ pub fn host_fn(attr: TokenStream, item: TokenStream) -> TokenStream {
         }
         quote!(
             fn #extern_name<'store>(
-                mut ctx: ::solipr_plugin::__private::PluginCtx<'store, #data_type>,
+                mut ctx: ::solipr_plugin::host::__private::PluginCtx<'store, #data_type>,
                 ptr: u32,
                 len: u32,
             ) -> Box<dyn ::std::future::Future<Output = u64> + Send + 'store> {
@@ -237,7 +238,9 @@ pub fn host_fn(attr: TokenStream, item: TokenStream) -> TokenStream {
                 };
 
                 // Deserialize the args from the memory slice.
-                let Ok(args) = bincode::deserialize::<(#args_type)>(args_slice) else {
+                let Ok(args) =
+                    ::solipr_plugin::host::__private::bincode::deserialize::<(#args_type)>
+                    (args_slice) else {
                     return Box::new(async { 0_u64 });
                 };
 
@@ -246,7 +249,8 @@ pub fn host_fn(attr: TokenStream, item: TokenStream) -> TokenStream {
                     let result = #intern_name(ctx.data_mut(), #call).await;
 
                     // Calculate the length of the result.
-                    let Ok(len) = bincode::serialized_size(&result) else {
+                    let Ok(len) =
+                        ::solipr_plugin::host::__private::bincode::serialized_size(&result) else {
                         return 0_u64;
                     };
                     let Ok(len): Result<u32, _> = len.try_into() else {
@@ -270,7 +274,8 @@ pub fn host_fn(attr: TokenStream, item: TokenStream) -> TokenStream {
                     };
 
                     // Serialize the result into the memory slice.
-                    if bincode::serialize_into(result_slice, &result).is_err() {
+                    if ::solipr_plugin::host::__private::bincode::serialize_into
+                        (result_slice, &result).is_err() {
                         return 0_u64;
                     }
 
@@ -283,7 +288,7 @@ pub fn host_fn(attr: TokenStream, item: TokenStream) -> TokenStream {
             static #extern_static_name: (
                 &'static str,
                 for<'store> fn(
-                    ::solipr_plugin::__private::PluginCtx<'store, #data_type>,
+                    ::solipr_plugin::host::__private::PluginCtx<'store, #data_type>,
                     u32,
                     u32,
                 ) -> Box<dyn ::std::future::Future<Output = u64> + Send + 'store>,

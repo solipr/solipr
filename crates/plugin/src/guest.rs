@@ -4,8 +4,15 @@
 use std::alloc::{Layout, alloc as std_alloc, dealloc as std_dealloc};
 use std::ptr::null_mut;
 
-pub use bincode;
 pub use solipr_macros::{export_fn, import_fn};
+
+/// This module contains utility functions used by the crate macros.
+///
+/// This module should not be used by the user of the crate.
+pub mod __private {
+    #[expect(unused_imports, reason = "this is used by some macros")]
+    pub use bincode;
+}
 
 /// Allocate a new buffer of the given size.
 ///

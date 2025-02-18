@@ -21,7 +21,6 @@ linkme = { version = "0.3.31", optional = true }
 tokio = { version = "1.43.0", features = ["full"] }
 
 [features]
-default = ["host", "guest"]
 host = ["dep:wasmtime", "dep:anyhow", "dep:linkme"]
 guest = []
 

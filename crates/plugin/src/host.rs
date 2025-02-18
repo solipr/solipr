@@ -66,6 +66,7 @@ type FunctionRegistry<Data> = linkme::DistributedSlice<
 pub mod __private {
     use std::ops::{Deref, DerefMut};
 
+    pub use bincode;
     use wasmtime::{Caller, Extern, Memory, TypedFunc};
 
     /// The context given to a host function when called by the plugin.
