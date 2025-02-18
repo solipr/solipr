@@ -1,0 +1,20 @@
+[package]
+name = "solipr-macros"
+version = "0.0.1"
+description = "The macros used in Solipr"
+repository = "https://github.com/solipr/solipr"
+readme = "README.md"
+license = "GPL-3.0-or-later"
+keywords = ["vcs"]
+categories = ["development-tools"]
+edition = "2021"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+syn = { version = "2.0.98", features = ["full"] }
+quote = "1.0.38"
+
+[lints]
+workspace = true
