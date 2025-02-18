@@ -175,7 +175,7 @@ pub fn host_fn_registry(_: TokenStream, item: TokenStream) -> TokenStream {
         #vis static #ident: [(
             &'static str,
             for<'store> fn(
-                ::solipr_plugin::PluginCtx<'store, #ty>,
+                ::solipr_plugin::__private::PluginCtx<'store, #ty>,
                 u32,
                 u32,
             ) -> Box<dyn ::std::future::Future<Output = u64> + Send + 'store>,
@@ -219,7 +219,7 @@ pub fn host_fn(attr: TokenStream, item: TokenStream) -> TokenStream {
         }
         quote!(
             fn #extern_name<'store>(
-                mut ctx: ::solipr_plugin::PluginCtx<'store, #data_type>,
+                mut ctx: ::solipr_plugin::__private::PluginCtx<'store, #data_type>,
                 ptr: u32,
                 len: u32,
             ) -> Box<dyn ::std::future::Future<Output = u64> + Send + 'store> {
@@ -283,7 +283,7 @@ pub fn host_fn(attr: TokenStream, item: TokenStream) -> TokenStream {
             static #extern_static_name: (
                 &'static str,
                 for<'store> fn(
-                    ::solipr_plugin::PluginCtx<'store, #data_type>,
+                    ::solipr_plugin::__private::PluginCtx<'store, #data_type>,
                     u32,
                     u32,
                 ) -> Box<dyn ::std::future::Future<Output = u64> + Send + 'store>,
