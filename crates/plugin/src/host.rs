@@ -2,16 +2,15 @@
 
 use std::borrow::Borrow;
 use std::future::Future;
-use std::ops::{Deref, DerefMut};
 use std::sync::LazyLock;
 
+use __private::PluginCtx;
 use anyhow::{Context, bail};
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 pub use solipr_macros::{host_fn, host_fn_registry};
 use wasmtime::{
-    Caller, Config as EngineConfig, Engine, Extern, Instance, Linker, Memory, Module, Store,
-    TypedFunc,
+    Config as EngineConfig, Engine, Instance, Linker, Memory, Module, Store, TypedFunc,
 };
 
 /// The [Engine] used by all the instances of [Plugin].
@@ -54,45 +53,62 @@ type FunctionRegistry<Data> = linkme::DistributedSlice<
     [(
         &'static str,
         for<'store> fn(
-            PluginCtx<'store, Data>,
+            __private::PluginCtx<'store, Data>,
             u32,
             u32,
         ) -> Box<dyn Future<Output = u64> + Send + 'store>,
     )],
 >;
 
-/// The context given to a host function when called by the plugin.
-pub struct PluginCtx<'store, Data: Send>(Caller<'store, Data>);
+/// This module contains utility functions used by the crate macros.
+///
+/// This module should not be used by the user of the crate.
+pub mod __private {
+    use std::ops::{Deref, DerefMut};
 
-impl<Data: Send> PluginCtx<'_, Data> {
-    /// Returns the plugin's memory.
-    pub fn memory(&mut self) -> Option<Memory> {
-        match self.get_export("memory") {
-            Some(Extern::Memory(memory)) => Some(memory),
-            _ => None,
+    use wasmtime::{Caller, Extern, Memory, TypedFunc};
+
+    /// The context given to a host function when called by the plugin.
+    ///
+    /// This should not be used directly, use the [`host_fn`](super::host_fn)
+    /// macro instead.
+    pub struct PluginCtx<'store, Data: Send>(Caller<'store, Data>);
+
+    impl<'store, Data: Send> PluginCtx<'store, Data> {
+        /// Creates a new [`PluginCtx`] from the given [Caller].
+        pub(crate) const fn new(caller: Caller<'store, Data>) -> Self {
+            Self(caller)
+        }
+
+        /// Returns the plugin's memory.
+        pub fn memory(&mut self) -> Option<Memory> {
+            match self.get_export("memory") {
+                Some(Extern::Memory(memory)) => Some(memory),
+                _ => None,
+            }
+        }
+
+        /// Returns the alloc function of the plugin.
+        pub fn alloc(&mut self) -> Option<TypedFunc<u32, u32>> {
+            match self.get_export("alloc") {
+                Some(Extern::Func(func)) => func.typed(&mut self.0).ok(),
+                _ => None,
+            }
         }
     }
 
-    /// Returns the alloc function of the plugin.
-    pub fn alloc(&mut self) -> Option<TypedFunc<u32, u32>> {
-        match self.get_export("alloc") {
-            Some(Extern::Func(func)) => func.typed(&mut self.0).ok(),
-            _ => None,
+    impl<'store, Data: Send> Deref for PluginCtx<'store, Data> {
+        type Target = Caller<'store, Data>;
+
+        fn deref(&self) -> &Self::Target {
+            &self.0
         }
     }
-}
 
-impl<'store, Data: Send> Deref for PluginCtx<'store, Data> {
-    type Target = Caller<'store, Data>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl<Data: Send> DerefMut for PluginCtx<'_, Data> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
+    impl<Data: Send> DerefMut for PluginCtx<'_, Data> {
+        fn deref_mut(&mut self) -> &mut Self::Target {
+            &mut self.0
+        }
     }
 }
 
@@ -120,7 +136,7 @@ impl<Data: Send + 'static> Plugin<Data> {
             linker.func_wrap_async(
                 "env",
                 function_name,
-                move |caller, (ptr, len): (u32, u32)| function(PluginCtx(caller), ptr, len),
+                move |caller, (ptr, len): (u32, u32)| function(PluginCtx::new(caller), ptr, len),
             )?;
         }
         let instance = linker.instantiate_async(&mut store, &module).await?;
