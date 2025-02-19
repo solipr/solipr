@@ -246,7 +246,9 @@ pub fn host_fn(attr: TokenStream, item: TokenStream) -> TokenStream {
 
                 Box::new(async move {
                     // Execute the function.
-                    let result = #intern_name(ctx.data_mut(), #call).await;
+                    let Ok(result) = #intern_name(ctx.data_mut(), #call).await else {
+                        return 0_u64;
+                    };
 
                     // Calculate the length of the result.
                     let Ok(len) =
