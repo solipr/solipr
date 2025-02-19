@@ -242,6 +242,7 @@ pub fn host_fn(attr: TokenStream, item: TokenStream) -> TokenStream {
                     ::solipr_plugin::host::__private::bincode::deserialize::<(#args_type)>
                     (args_slice) else {
                     return Box::new(async { 0_u64 });
+                    // TEST
                 };
 
                 Box::new(async move {
