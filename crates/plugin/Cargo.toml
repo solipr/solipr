@@ -11,7 +11,7 @@ edition = "2021"
 
 [dependencies]
 solipr-macros = { path = "../macros" }
-serde = "1.0.217"
+serde = "1.0.218"
 bincode = "1.3.3"
 wasmtime = { version = "29.0.1", optional = true }
 anyhow = { version = "1.0.95", optional = true }
