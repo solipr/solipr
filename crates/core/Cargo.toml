@@ -1,0 +1,16 @@
+[package]
+name = "solipr-core"
+version = "0.0.1"
+description = "The core systems of Solipr"
+repository = "https://github.com/solipr/solipr"
+readme = "README.md"
+license = "GPL-3.0-or-later"
+keywords = ["vcs"]
+categories = ["development-tools"]
+edition = "2021"
+
+[dependencies]
+futures-core = "0.3.31"
+
+[lints]
+workspace = true
