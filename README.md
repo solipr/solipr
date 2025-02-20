@@ -21,7 +21,7 @@ Solipr is a purely Rust-based Peer to Peer Version Control System.
 
 ## How does it work?
 
-In order to fully understand how Solipr works, you need to read step by step the documentation : 
+In order to fully understand how Solipr works, you need to read step by step the documentation :
 
 | **Documentation** | **Short Description** |
 |-------------------|-----------------------|
@@ -30,7 +30,7 @@ In order to fully understand how Solipr works, you need to read step by step the
 
 ## Our team
 
-**founders**
+**Founders**
 
 - [Tipragot](https://github.com/tipragot)
-- [CoCoSol](https://cocosol.dev)
+- [CoCoSol](https://cocosol.dev) (has left since 2025)
