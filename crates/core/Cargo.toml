@@ -9,8 +9,5 @@ keywords = ["vcs"]
 categories = ["development-tools"]
 edition = "2021"
 
-[dependencies]
-futures-core = "0.3.31"
-
 [lints]
 workspace = true
