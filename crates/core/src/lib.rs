@@ -89,7 +89,7 @@ pub trait DatabaseTx<'db> {
     /// This method should return an error if the transaction is read-only or if
     /// there is an fatal error that can't be recovered.
     fn put(
-        &self,
+        &mut self,
         key: impl AsRef<[u8]>,
         value: Option<impl AsRef<[u8]>>,
     ) -> Result<(), Self::FatalError>;
