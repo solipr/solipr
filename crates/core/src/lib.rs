@@ -44,7 +44,7 @@ pub trait Database {
 ///
 /// The tranaction can be read-only or read-write dpending on whether it is
 /// opened using [`Database::read_tx`] or [`Database::write_tx`].
-pub trait DatabaseTx<'db>: Send {
+pub trait DatabaseTx<'db> {
     /// A fatal error that can be returned by the transaction.
     ///
     /// If this error is returned by the transaction, the transaction should not
