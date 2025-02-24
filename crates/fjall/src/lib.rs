@@ -10,7 +10,7 @@ use fjall::{
     Config, PartitionCreateOptions, ReadTransaction, TransactionalKeyspace,
     TransactionalPartitionHandle, WriteTransaction,
 };
-use solipr_core::{Database, DatabaseTx, Slice};
+use solipr_core::storage::{Database, DatabaseTx, Slice};
 
 /// A [Database] implementation using the [fjall] library.
 pub struct FjallDatabase {
