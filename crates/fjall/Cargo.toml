@@ -1,0 +1,17 @@
+[package]
+name = "solipr-fjall"
+version = "0.0.1"
+description = "An implementation of Solipr Database using the fjall library"
+repository = "https://github.com/solipr/solipr"
+readme = "README.md"
+license = "GPL-3.0-or-later"
+keywords = ["vcs"]
+categories = ["development-tools"]
+edition = "2021"
+
+[dependencies]
+solipr-core = { path = "../core" }
+fjall = "2.6.5"
+
+[lints]
+workspace = true
