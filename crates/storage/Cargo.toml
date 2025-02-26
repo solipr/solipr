@@ -1,7 +1,7 @@
 [package]
-name = "solipr-fjall"
+name = "solipr-storage"
 version = "0.0.1"
-description = "An implementation of Solipr Database using the fjall library"
+description = "The storage system for Solipr"
 repository = "https://github.com/solipr/solipr"
 readme = "README.md"
 license = "GPL-3.0-or-later"
@@ -12,6 +12,7 @@ edition = "2021"
 [dependencies]
 solipr-core = { path = "../core" }
 fjall = "2.6.5"
+thiserror = "2.0.11"
 
 [lints]
 workspace = true
