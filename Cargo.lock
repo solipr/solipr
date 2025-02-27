@@ -1174,7 +1174,6 @@ name = "solipr-storage"
 version = "0.0.1"
 dependencies = [
  "fjall",
- "solipr-core",
  "thiserror 2.0.11",
 ]
 
