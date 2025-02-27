@@ -10,7 +10,6 @@ categories = ["development-tools"]
 edition = "2021"
 
 [dependencies]
-solipr-core = { path = "../core" }
 fjall = "2.6.5"
 thiserror = "2.0.11"
 
