@@ -10,7 +10,7 @@ categories = ["development-tools"]
 edition = "2021"
 
 [dependencies]
-fjall = "2.6.5"
+fjall = "2.6.7"
 thiserror = "2.0.11"
 
 [lints]
