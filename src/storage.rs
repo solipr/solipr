@@ -14,6 +14,8 @@ use fjall::{
 use sha2::{Digest, Sha256};
 use uuid::Uuid;
 
+use crate::identifier::ContentHash;
+
 /// A database that can be used to store and retrieve bytes using transactions.
 pub struct Database {
     /// The underlying [fjall] keyspace.
@@ -196,24 +198,6 @@ impl Deref for Slice<'_> {
 
     fn deref(&self) -> &Self::Target {
         self.0.as_ref()
-    }
-}
-
-/// The hash of a content stored in the registry.
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct ContentHash([u8; 32]);
-
-impl ContentHash {
-    /// Creates a new content hash from raw bytes.
-    #[must_use]
-    pub const fn new(bytes: [u8; 32]) -> Self {
-        Self(bytes)
-    }
-
-    /// Returns the raw bytes of the hash.
-    #[must_use]
-    pub const fn as_bytes(&self) -> &[u8; 32] {
-        &self.0
     }
 }
 
