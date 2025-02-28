@@ -10,6 +10,7 @@ categories = ["development-tools"]
 edition = "2024"
 
 [dependencies]
+anyhow = "1.0.96"
 fjall = "2.6.7"
 thiserror = "2.0.11"
 

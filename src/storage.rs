@@ -3,27 +3,12 @@
 use std::marker::PhantomData;
 use std::ops::Deref;
 use std::path::Path;
-use std::result::Result as StdResult;
 
+use anyhow::bail;
 use fjall::{
     Config, PartitionCreateOptions, ReadTransaction, TransactionalKeyspace,
     TransactionalPartitionHandle, WriteTransaction,
 };
-
-/// The error type for [`Database`] operations.
-#[derive(Debug, thiserror::Error)]
-pub enum Error {
-    /// The underlying [fjall] database returned an error.
-    #[error("fjall error: {0}")]
-    Fjall(#[from] fjall::Error),
-
-    /// The user tried to write to a read-only transaction.
-    #[error("write on a read-only transaction")]
-    ReadOnlyTransaction,
-}
-
-/// The result type for [`Database`] operations.
-type Result<T> = StdResult<T, Error>;
 
 /// A database that can be used to store and retrieve bytes using transactions.
 pub struct Database {
@@ -41,7 +26,7 @@ impl Database {
     ///
     /// An error is returned if there is an IO error while opening the folder or
     /// if the database is in an invalid state.
-    pub fn open(folder: impl AsRef<Path>) -> Result<Self> {
+    pub fn open(folder: impl AsRef<Path>) -> anyhow::Result<Self> {
         let keyspace = Config::new(folder).open_transactional()?;
         let partition = keyspace.open_partition("data", PartitionCreateOptions::default())?;
         Ok(Self {
@@ -58,7 +43,7 @@ impl Database {
     ///
     /// This method return an error if there is an fatal error that can't be
     /// recovered.
-    pub fn read_tx(&self) -> Result<Transaction> {
+    pub fn read_tx(&self) -> anyhow::Result<Transaction> {
         Ok(Transaction {
             partition: &self.partition,
             tx: InnerTx::Read(self.keyspace.read_tx()),
@@ -76,7 +61,7 @@ impl Database {
     ///
     /// This method return an error if there is an fatal error that can't be
     /// recovered.
-    pub fn write_tx(&self) -> Result<Transaction> {
+    pub fn write_tx(&self) -> anyhow::Result<Transaction> {
         Ok(Transaction {
             partition: &self.partition,
             tx: InnerTx::Write(self.keyspace.write_tx()),
@@ -115,7 +100,10 @@ impl Transaction<'_> {
     ///
     /// The iterator should return an error if there is an fatal error that
     /// can't be recovered.
-    pub fn keys(&self, prefix: impl AsRef<[u8]>) -> impl Iterator<Item = Result<(Slice, Slice)>> {
+    pub fn keys(
+        &self,
+        prefix: impl AsRef<[u8]>,
+    ) -> impl Iterator<Item = anyhow::Result<(Slice, Slice)>> {
         let prefix = prefix.as_ref().to_vec();
         let iter: Box<dyn Iterator<Item = _>> = match &self.tx {
             InnerTx::Read(tx) => Box::new(tx.prefix(self.partition, prefix)),
@@ -123,7 +111,7 @@ impl Transaction<'_> {
         };
         iter.map(|item| {
             item.map(|(key, value)| (Slice(key, PhantomData), Slice(value, PhantomData)))
-                .map_err(Error::Fjall)
+                .map_err(|error| anyhow::anyhow!(error))
         })
     }
 
@@ -133,7 +121,7 @@ impl Transaction<'_> {
     ///
     /// This method should return an error if there is an fatal error that can't
     /// be recovered.
-    pub fn get(&self, key: impl AsRef<[u8]>) -> Result<Option<Slice<'_>>> {
+    pub fn get(&self, key: impl AsRef<[u8]>) -> anyhow::Result<Option<Slice<'_>>> {
         let slice = match &self.tx {
             InnerTx::Read(tx) => tx.get(self.partition, key.as_ref())?,
             InnerTx::Write(tx) => tx.get(self.partition, key.as_ref())?,
@@ -153,10 +141,14 @@ impl Transaction<'_> {
     ///
     /// This method should return an error if the transaction is read-only or if
     /// there is an fatal error that can't be recovered.
-    pub fn put(&mut self, key: impl AsRef<[u8]>, value: Option<impl AsRef<[u8]>>) -> Result<()> {
+    pub fn put(
+        &mut self,
+        key: impl AsRef<[u8]>,
+        value: Option<impl AsRef<[u8]>>,
+    ) -> anyhow::Result<()> {
         match &mut self.tx {
             InnerTx::Read(_) => {
-                return Err(Error::ReadOnlyTransaction);
+                bail!("cannot put into a read only transaction")
             }
             InnerTx::Write(tx) => {
                 if let Some(value) = value {
@@ -180,9 +172,9 @@ impl Transaction<'_> {
     ///
     /// This method should return an error if the transaction is read-only or if
     /// there is an fatal error that can't be recovered.
-    pub fn commit(self) -> Result<()> {
+    pub fn commit(self) -> anyhow::Result<()> {
         match self.tx {
-            InnerTx::Read(_) => Err(Error::ReadOnlyTransaction),
+            InnerTx::Read(_) => bail!("cannot commit a read only transaction"),
             InnerTx::Write(tx) => Ok(tx.commit()?),
         }
     }
