@@ -1,5 +1,15 @@
 {
 	"name": "Rust",
 	"image": "mcr.microsoft.com/devcontainers/rust:1-1-bullseye",
-	"postCreateCommand": "rustup install nightly --profile complete"
+	"postCreateCommand": "rustup install nightly --profile complete",
+	"customizations": {
+		"vscode": {
+			"settings": {
+				"editor.formatOnSave": true,
+				"rust-analyzer.rustfmt.extraArgs": [
+					"+nightly"
+				]
+			}
+		}
+	}
 }
