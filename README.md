@@ -1,23 +1,17 @@
 <a id="readme-top"></a>
 <div align="center">
-  <p align="center" style="color: red; font-weight: bold;">
-    🚧 This project is in the early stages of development and is not usable currently. 🚧
+  <p style="color: red; font-weight: bold;">
+    🚧 This project is in early development and is not usable currently. 🚧
   </p>
-</div>
-
-<div align="center">
-  <img src="logo/logo.svg" alt="Logo" width="300"></p>
-  <h3 align="center">Solipr</h3>
-  <p align="center">
-    <br />
-    A purely Rust-based Version Control System.
-  </p>
+  <img src="logo/logo.svg" alt="Logo" width="300">
+  <h3>Solipr</h3>
+  <p>A Rust-based Peer to Peer Version Control System.</p>
 </div>
 
 ---
 
 ## Introduction
-Solipr is a purely Rust-based Peer to Peer Version Control System.
+Solipr is a Peer to Peer Version Control System built entirely in Rust.
 
 ## Our team
 
