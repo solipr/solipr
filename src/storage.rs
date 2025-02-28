@@ -225,7 +225,6 @@ pub struct Registry {
 
 impl Registry {
     /// Creates a new [Registry] from the specified folder.
-    #[must_use]
     pub fn new(folder: impl Into<PathBuf>) -> Self {
         Self {
             folder: folder.into(),
