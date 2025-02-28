@@ -7,7 +7,7 @@ readme = "README.md"
 license = "GPL-3.0-or-later"
 keywords = ["vcs"]
 categories = ["development-tools"]
-edition = "2021"
+edition = "2024"
 
 [lints]
 workspace = true
