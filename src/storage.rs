@@ -278,7 +278,7 @@ impl Registry {
         drop(temp_file);
 
         // Create a unique hash for the content
-        let hash = ContentHash::new(hasher.finalize().into());
+        let hash = ContentHash(hasher.finalize().into());
         let encoded_hash = bs58::encode(hash.as_bytes()).into_string();
 
         // Move the temporary file into the correct location
