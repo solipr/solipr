@@ -15,7 +15,6 @@ anyhow = "1.0.96"
 sha2 = "0.10.8"
 fjall = "2.6.7"
 bs58 = "0.5.1"
-thiserror = "2.0.11"
 
 [lints.rust]
 missing_docs = "warn"
