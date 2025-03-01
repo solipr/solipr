@@ -208,8 +208,8 @@ pub struct Registry {
 }
 
 impl Registry {
-    /// Creates a new [Registry] from the specified folder.
-    pub fn new(folder: impl Into<PathBuf>) -> Self {
+    /// Opens a folder as a [Registry].
+    pub fn open(folder: impl Into<PathBuf>) -> Self {
         Self {
             folder: folder.into(),
         }
