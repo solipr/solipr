@@ -5,6 +5,7 @@ use std::hash::Hash;
 use std::str::FromStr;
 
 use anyhow::Context;
+use uuid::Uuid;
 
 /// The hash of a content stored in a [Registry](crate::storage::Registry).
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -36,5 +37,32 @@ impl FromStr for ContentHash {
     fn from_str(mut value: &str) -> Result<Self, Self::Err> {
         value = value.trim().strip_prefix("C").context("missing prefix")?;
         Ok(Self(bs58::decode(value.as_bytes()).into_array_const()?))
+    }
+}
+
+/// The identifier of a [Repository](crate::repository::Repository).
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct RepositoryId(Uuid);
+
+impl Debug for RepositoryId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "R{}", bs58::encode(self.0.as_bytes()).into_string())
+    }
+}
+
+impl Display for RepositoryId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "R{}", bs58::encode(self.0.as_bytes()).into_string())
+    }
+}
+
+impl FromStr for RepositoryId {
+    type Err = anyhow::Error;
+
+    fn from_str(mut value: &str) -> Result<Self, Self::Err> {
+        value = value.trim().strip_prefix("R").context("missing prefix")?;
+        Ok(Self(Uuid::from_bytes(
+            bs58::decode(value.as_bytes()).into_array_const()?,
+        )))
     }
 }
