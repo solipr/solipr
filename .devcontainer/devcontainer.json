@@ -10,7 +10,10 @@
 					"+nightly"
 				],
 				"rust-analyzer.check.command": "clippy"
-			}
+			},
+			"extensions": [
+				"BytecodeAlliance.wit-idl"
+			]
 		}
 	}
 }

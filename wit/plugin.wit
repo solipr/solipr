@@ -1,0 +1,92 @@
+package solipr:plugin@0.0.1;
+
+interface kv-store {
+    resource read-store {
+        read: func(key: list<u8>) -> option<list<u8>>;
+        keys: func(prefix: list<u8>) -> list<list<u8>>;
+    }
+
+    resource write-store {
+        read: func(key: list<u8>) -> option<list<u8>>;
+        keys: func(prefix: list<u8>) -> list<list<u8>>;
+        write: func(key: list<u8>, value: option<list<u8>>);
+    }
+}
+
+interface registry {
+    type content-hash = list<u8>;
+
+    resource read-registry {
+        read: func(hash: content-hash, start: u64, length: option<u64>) -> option<list<u8>>;
+        size: func(hash: content-hash) -> option<u64>;
+    }
+
+    resource write-registry {
+        read: func(hash: content-hash, start: u64, length: option<u64>) -> option<list<u8>>;
+        size: func(hash: content-hash) -> option<u64>;
+        write: func(bytes: list<u8>) -> content-hash;
+        cut: func(hash: content-hash, start: u64, length: option<u64>) -> option<content-hash>;
+    }
+}
+
+interface repository {
+    use registry.{content-hash};
+
+    type change-hash = list<u8>;
+
+    record change {
+        dependencies: list<change-hash>,
+        used-contents: list<content-hash>,
+        plugin-data: list<u8>,
+    }
+
+    resource document {
+        get-change: func(hash: change-hash) -> option<change>;
+        dependent-changes: func(hash: change-hash) -> list<change-hash>;
+    }
+}
+
+interface render {
+    use registry.{content-hash};
+
+    resource renderer {
+        render-bytes: func(bytes: list<u8>);
+        render-content: func(content: content-hash);
+    }
+}
+
+world document-plugin {
+    use kv-store.{read-store, write-store};
+    use registry.{content-hash, read-registry, write-registry};
+    use repository.{change-hash, change, document};
+    use render.{renderer};
+
+    export render-document: func(
+        registry: borrow<read-registry>,
+        document: borrow<document>,
+        store: borrow<read-store>,
+        renderer: borrow<renderer>,
+    );
+
+    export calculate-diff: func(
+        registry: borrow<write-registry>,
+        document: borrow<document>,
+        store: borrow<read-store>,
+        target-content: content-hash,
+    ) -> option<change>;
+
+    export apply-change: func(
+        registry: borrow<read-registry>,
+        document: borrow<document>,
+        store: borrow<write-store>,
+        change-hash: change-hash,
+        change: change,
+    );
+
+    export unapply-change: func(
+        registry: borrow<read-registry>,
+        document: borrow<document>,
+        store: borrow<write-store>,
+        change-hash: change-hash,
+    );
+}
