@@ -1,92 +1,287 @@
 package solipr:plugin@0.0.1;
 
-interface kv-store {
-    resource read-store {
+/// A plugin that manages a document in Solipr.
+world document-plugin {
+    /// A read-only interface for accessing the plugin's key-value store.
+    resource read-kv-store {
+        /// Reads the value associated with the given key.
+        ///
+        /// # Arguments
+        ///
+        /// * `key` - The key to read.
+        ///
+        /// # Returns
+        ///
+        /// The value associated with the key.
+        /// If the key does not exist in the store, returns `none`.
         read: func(key: list<u8>) -> option<list<u8>>;
+
+        /// Retrieves all keys with the given prefix.
+        ///
+        /// # Arguments
+        ///
+        /// * `prefix` - The prefix to match.
+        ///
+        /// # Returns
+        ///
+        /// A list of keys that match the given prefix.
+        /// If no keys match the prefix, returns an empty list.
         keys: func(prefix: list<u8>) -> list<list<u8>>;
     }
 
-    resource write-store {
+    /// A writable interface for accessing the plugin's key-value store.
+    resource write-kv-store {
+        /// Reads the value associated with the given key.
+        ///
+        /// # Arguments
+        ///
+        /// * `key` - The key to read.
+        ///
+        /// # Returns
+        ///
+        /// The value associated with the key.
+        /// If the key does not exist in the store, returns `none`.
         read: func(key: list<u8>) -> option<list<u8>>;
+
+        /// Retrieves all keys with the given prefix.
+        ///
+        /// # Arguments
+        ///
+        /// * `prefix` - The prefix to match.
+        ///
+        /// # Returns
+        ///
+        /// A list of keys that match the given prefix.
+        /// If no keys match the prefix, returns an empty list.
         keys: func(prefix: list<u8>) -> list<list<u8>>;
+
+        /// Writes a value to the key-value store.
+        ///
+        /// # Arguments
+        ///
+        /// * `key` - The key to write.
+        /// * `value` - The value to write. If `none`, the key will be removed from the store.
         write: func(key: list<u8>, value: option<list<u8>>);
     }
-}
 
-interface registry {
+    /// Represents the hash of content stored in the global registry.
     type content-hash = list<u8>;
 
+    /// A read-only interface for accessing the global registry.
     resource read-registry {
+        /// Reads a portion of the content associated with the given hash.
+        ///
+        /// # Arguments
+        ///
+        /// * `hash` - The content hash of the content to read.
+        /// * `start` - The starting index to read from.
+        /// * `length` - The length of bytes to read.
+        ///
+        /// # Returns
+        ///
+        /// The portion of the content.
+        /// If the content does not exist, returns `none`.
         read: func(hash: content-hash, start: u64, length: option<u64>) -> option<list<u8>>;
+
+        /// Gets the size of the content associated with the given hash.
+        ///
+        /// # Arguments
+        ///
+        /// * `hash` - The content hash of the content to measure.
+        ///
+        /// # Returns
+        ///
+        /// The size of the content in bytes.
+        /// If the content does not exist, returns `none`.
         size: func(hash: content-hash) -> option<u64>;
     }
 
+    /// A writable interface for accessing the global registry.
     resource write-registry {
+        /// Reads a portion of the content associated with the given hash.
+        ///
+        /// # Arguments
+        ///
+        /// * `hash` - The content hash of the content to read.
+        /// * `start` - The starting index to read from.
+        /// * `length` - The length of bytes to read.
+        ///
+        /// # Returns
+        ///
+        /// The portion of the content.
+        /// If the content does not exist, returns `none`.
         read: func(hash: content-hash, start: u64, length: option<u64>) -> option<list<u8>>;
+
+        /// Gets the size of the content associated with the given hash.
+        ///
+        /// # Arguments
+        ///
+        /// * `hash` - The content hash of the content to measure.
+        ///
+        /// # Returns
+        ///
+        /// The size of the content in bytes.
+        /// If the content does not exist, returns `none`.
         size: func(hash: content-hash) -> option<u64>;
-        write: func(bytes: list<u8>) -> content-hash;
+
+        /// Writes data to the global registry and returns the content hash.
+        ///
+        /// If the content already exists, nothing happens and the content hash is returned.
+        ///
+        /// # Arguments
+        ///
+        /// * `data` - The data to write.
+        ///
+        /// # Returns
+        ///
+        /// The content hash of the written data.
+        write: func(data: list<u8>) -> content-hash;
+
+        /// Cuts a portion of the content associated with the given hash and returns a new content hash
+        /// associated with the cut portion.
+        ///
+        /// # Arguments
+        ///
+        /// * `hash` - The content hash of the content to cut.
+        /// * `start` - The starting index to cut from.
+        /// * `length` - The length of bytes to cut.
+        ///
+        /// # Returns
+        ///
+        /// The content hash of the cut portion.
+        /// If the content does not exist, returns `none`.
         cut: func(hash: content-hash, start: u64, length: option<u64>) -> option<content-hash>;
     }
-}
 
-interface repository {
-    use registry.{content-hash};
-
+    /// The hash of a change made to the document.
     type change-hash = list<u8>;
 
+    /// A change made to the document.
     record change {
+        /// The hashes of the changes that this change depends on.
         dependencies: list<change-hash>,
+
+        /// The hashes of the contents used by this change.
         used-contents: list<content-hash>,
+
+        /// Plugin-specific data associated with this change.
         plugin-data: list<u8>,
     }
 
+    /// A document in a repository.
+    ///
+    /// A document contains a list of changes that have been applied to it.
+    /// They can be retrieved using the `get-change` method.
     resource document {
+        /// Retrieves a change associated with the given hash.
+        ///
+        /// # Arguments
+        ///
+        /// * `hash` - The change hash of the change to retrieve.
+        ///
+        /// # Returns
+        ///
+        /// The change associated with the given hash.
+        /// If the change is not applied to the document, returns `none`.
         get-change: func(hash: change-hash) -> option<change>;
+
+        /// Retrieves the hashes of changes that depend on the given change.
+        ///
+        /// # Arguments
+        ///
+        /// * `hash` - The change hash of the change to find dependent changes for.
+        ///
+        /// # Returns
+        ///
+        /// A list of change hashes that depend on the given change.
+        /// If no changes depend on the given change, returns an empty list.
         dependent-changes: func(hash: change-hash) -> list<change-hash>;
     }
-}
 
-interface render {
-    use registry.{content-hash};
-
+    /// A renderer for a document.
+    ///
+    /// The renderer is used to render the document into bytes.
+    /// It is given to the `render-document` function.
     resource renderer {
+        /// Renders the given bytes.
+        ///
+        /// # Arguments
+        ///
+        /// * `bytes` - The bytes to render.
         render-bytes: func(bytes: list<u8>);
+
+        /// Renders the content associated with the given hash.
+        ///
+        /// # Arguments
+        ///
+        /// * `content` - The content hash of the content to render.
         render-content: func(content: content-hash);
     }
-}
 
-world document-plugin {
-    use kv-store.{read-store, write-store};
-    use registry.{content-hash, read-registry, write-registry};
-    use repository.{change-hash, change, document};
-    use render.{renderer};
-
+    /// Render the current state of the document into bytes using the given renderer.
+    ///
+    /// # Arguments
+    ///
+    /// * `registry` - A read-only interface to the global registry.
+    /// * `document` - The document to render.
+    /// * `store` - A read-only interface to the key-value store.
+    /// * `renderer` - The renderer to use for rendering.
     export render-document: func(
         registry: borrow<read-registry>,
         document: borrow<document>,
-        store: borrow<read-store>,
+        store: borrow<read-kv-store>,
         renderer: borrow<renderer>,
     );
 
+    /// Calculates a change to the current document such that, when applied,
+    /// the document will output the target content when rendered.
+    ///
+    /// # Arguments
+    ///
+    /// * `registry` - A writable interface to the global registry.
+    /// * `document` - The document to calculate the diff for.
+    /// * `store` - A read-only interface to the key-value store.
+    /// * `target-content` - The content hash of the target content.
+    ///
+    /// # Returns
+    /// The change that, when applied, will make the document render the target content.
+    /// If the document is already in a state that render to the target content, returns `none`.
     export calculate-diff: func(
         registry: borrow<write-registry>,
         document: borrow<document>,
-        store: borrow<read-store>,
+        store: borrow<read-kv-store>,
         target-content: content-hash,
     ) -> option<change>;
 
+    /// Apply a change to the document, updating its state accordingly.
+    ///
+    /// # Arguments
+    ///
+    /// * `registry` - A read-only interface to the global registry.
+    /// * `document` - The document to apply the change to.
+    /// * `store` - A writable interface to the key-value store.
+    /// * `change-hash` - The change hash of the change to apply.
+    /// * `change` - The change to apply.
     export apply-change: func(
         registry: borrow<read-registry>,
         document: borrow<document>,
-        store: borrow<write-store>,
+        store: borrow<write-kv-store>,
         change-hash: change-hash,
         change: change,
     );
 
+    /// Reverts a change that was previously applied to the document, restoring its previous state.
+    ///
+    /// # Arguments
+    ///
+    /// * `registry` - A read-only interface to the global registry.
+    /// * `document` - The document to unapply the change for.
+    /// * `store` - A writable interface to the key-value store.
+    /// * `change-hash` - The change hash of the change to revert.
     export unapply-change: func(
         registry: borrow<read-registry>,
         document: borrow<document>,
-        store: borrow<write-store>,
+        store: borrow<write-kv-store>,
         change-hash: change-hash,
     );
 }
