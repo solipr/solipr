@@ -6,11 +6,7 @@ use std::marker::PhantomData;
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
 
-use anyhow::bail;
-use fjall::{
-    Config, PartitionCreateOptions, ReadTransaction, TransactionalKeyspace,
-    TransactionalPartitionHandle, WriteTransaction,
-};
+use fjall::{Config, PartitionCreateOptions, TransactionalKeyspace, TransactionalPartitionHandle};
 use sha2::{Digest, Sha256};
 use uuid::Uuid;
 
@@ -49,10 +45,10 @@ impl Database {
     ///
     /// This method return an error if there is an fatal error that can't be
     /// recovered.
-    pub fn read_tx(&self) -> anyhow::Result<Transaction> {
-        Ok(Transaction {
+    pub fn read_tx(&self) -> anyhow::Result<ReadTransaction> {
+        Ok(ReadTransaction {
             partition: &self.partition,
-            tx: InnerTx::Read(self.keyspace.read_tx()),
+            tx: self.keyspace.read_tx(),
         })
     }
 
@@ -67,38 +63,24 @@ impl Database {
     ///
     /// This method return an error if there is an fatal error that can't be
     /// recovered.
-    pub fn write_tx(&self) -> anyhow::Result<Transaction> {
-        Ok(Transaction {
+    pub fn write_tx(&self) -> anyhow::Result<WriteTransaction> {
+        Ok(WriteTransaction {
             partition: &self.partition,
-            tx: InnerTx::Write(self.keyspace.write_tx()),
+            tx: self.keyspace.write_tx(),
         })
     }
 }
 
-/// A transaction on a [Database].
-///
-/// The tranaction can be read-only or read-write dpending on whether it is
-/// opened using [`Database::read_tx`] or [`Database::write_tx`].
-pub struct Transaction<'db> {
+/// A read-only transaction on a [Database].
+pub struct ReadTransaction<'db> {
     /// The partition that the transaction is operating on.
     partition: &'db TransactionalPartitionHandle,
 
     /// The underlying [fjall] transaction.
-    tx: InnerTx<'db>,
+    tx: fjall::ReadTransaction,
 }
 
-/// Since [fjall] use two different types of transactions, we need to use an
-/// enum to represent the different types of transactions. This enum serves that
-/// purpose.
-enum InnerTx<'db> {
-    /// The read-only version of the transaction.
-    Read(ReadTransaction),
-
-    /// The write version of the transaction.
-    Write(WriteTransaction<'db>),
-}
-
-impl Transaction<'_> {
+impl ReadTransaction<'_> {
     /// Returns an [Iterator] over the keys starting by the given prefix with
     /// their values.
     ///
@@ -111,11 +93,7 @@ impl Transaction<'_> {
         prefix: impl AsRef<[u8]>,
     ) -> impl Iterator<Item = anyhow::Result<(Slice, Slice)>> {
         let prefix = prefix.as_ref().to_vec();
-        let iter: Box<dyn Iterator<Item = _>> = match &self.tx {
-            InnerTx::Read(tx) => Box::new(tx.prefix(self.partition, prefix)),
-            InnerTx::Write(tx) => Box::new(tx.prefix(self.partition, prefix)),
-        };
-        iter.map(|item| {
+        self.tx.prefix(self.partition, prefix).map(|item| {
             item.map(|(key, value)| (Slice(key, PhantomData), Slice(value, PhantomData)))
                 .map_err(|error| anyhow::anyhow!(error))
         })
@@ -128,11 +106,52 @@ impl Transaction<'_> {
     /// This method should return an error if there is an fatal error that can't
     /// be recovered.
     pub fn get(&self, key: impl AsRef<[u8]>) -> anyhow::Result<Option<Slice<'_>>> {
-        let slice = match &self.tx {
-            InnerTx::Read(tx) => tx.get(self.partition, key.as_ref())?,
-            InnerTx::Write(tx) => tx.get(self.partition, key.as_ref())?,
-        };
-        Ok(slice.map(|slice| Slice(slice, PhantomData)))
+        Ok(self
+            .tx
+            .get(self.partition, key.as_ref())?
+            .map(|slice| Slice(slice, PhantomData)))
+    }
+}
+
+/// A read-write transaction on a [Database].
+pub struct WriteTransaction<'db> {
+    /// The partition that the transaction is operating on.
+    partition: &'db TransactionalPartitionHandle,
+
+    /// The underlying [fjall] transaction.
+    tx: fjall::WriteTransaction<'db>,
+}
+
+impl WriteTransaction<'_> {
+    /// Returns an [Iterator] over the keys starting by the given prefix with
+    /// their values.
+    ///
+    /// # Errors
+    ///
+    /// The iterator should return an error if there is an fatal error that
+    /// can't be recovered.
+    pub fn keys(
+        &self,
+        prefix: impl AsRef<[u8]>,
+    ) -> impl Iterator<Item = anyhow::Result<(Slice, Slice)>> {
+        let prefix = prefix.as_ref().to_vec();
+        self.tx.prefix(self.partition, prefix).map(|item| {
+            item.map(|(key, value)| (Slice(key, PhantomData), Slice(value, PhantomData)))
+                .map_err(|error| anyhow::anyhow!(error))
+        })
+    }
+
+    /// Get a value from the database.
+    ///
+    /// # Errors
+    ///
+    /// This method should return an error if there is an fatal error that can't
+    /// be recovered.
+    pub fn get(&self, key: impl AsRef<[u8]>) -> anyhow::Result<Option<Slice<'_>>> {
+        Ok(self
+            .tx
+            .get(self.partition, key.as_ref())?
+            .map(|slice| Slice(slice, PhantomData)))
     }
 
     /// Put a value in the database. If there is already a value for this key,
@@ -152,17 +171,10 @@ impl Transaction<'_> {
         key: impl AsRef<[u8]>,
         value: Option<impl AsRef<[u8]>>,
     ) -> anyhow::Result<()> {
-        match &mut self.tx {
-            InnerTx::Read(_) => {
-                bail!("cannot put into a read only transaction")
-            }
-            InnerTx::Write(tx) => {
-                if let Some(value) = value {
-                    tx.insert(self.partition, key.as_ref(), value.as_ref());
-                } else {
-                    tx.remove(self.partition, key.as_ref());
-                }
-            }
+        if let Some(value) = value {
+            self.tx.insert(self.partition, key.as_ref(), value.as_ref());
+        } else {
+            self.tx.remove(self.partition, key.as_ref());
         }
         Ok(())
     }
@@ -179,10 +191,8 @@ impl Transaction<'_> {
     /// This method should return an error if the transaction is read-only or if
     /// there is an fatal error that can't be recovered.
     pub fn commit(self) -> anyhow::Result<()> {
-        match self.tx {
-            InnerTx::Read(_) => bail!("cannot commit a read only transaction"),
-            InnerTx::Write(tx) => Ok(tx.commit()?),
-        }
+        self.tx.commit()?;
+        Ok(())
     }
 }
 
