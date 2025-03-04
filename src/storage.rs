@@ -22,7 +22,7 @@ pub struct Database {
 }
 
 impl Database {
-    /// Open a [`SoliprDb`] in the given folder.
+    /// Open a [Database] in the given folder.
     ///
     /// # Errors
     ///
