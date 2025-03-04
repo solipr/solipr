@@ -63,7 +63,7 @@ pub struct RepositoryView<'repo> {
     #[expect(dead_code, reason = "will be used in the future")]
     repository: &'repo Repository,
 
-    /// The [ReadTransaction] being used by this view.
+    /// The [`ReadTransaction`] being used by this view.
     #[expect(dead_code, reason = "will be used in the future")]
     transaction: ReadTransaction<'repo>,
 }
@@ -76,7 +76,7 @@ pub struct RepositoryEditor<'repo> {
     #[expect(dead_code, reason = "will be used in the future")]
     repository: &'repo Repository,
 
-    /// The [WriteTransaction] being used by this editor.
+    /// The [`WriteTransaction`] being used by this editor.
     #[expect(dead_code, reason = "will be used in the future")]
     transaction: WriteTransaction<'repo>,
 }
