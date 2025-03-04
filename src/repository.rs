@@ -2,7 +2,7 @@
 
 use crate::config::CONFIG;
 use crate::identifier::RepositoryId;
-use crate::storage::{Database, Registry, Transaction};
+use crate::storage::{Database, ReadTransaction, Registry, WriteTransaction};
 
 /// A Solipr repository.
 pub struct Repository {
@@ -42,28 +42,41 @@ impl Repository {
         })
     }
 
-    /// Opens a read-write view on the [Repository].
+    /// Opens an editor on the [Repository].
     ///
     /// # Errors
     ///
     /// See [`Database::write_tx`].
-    pub fn edit(&self) -> anyhow::Result<RepositoryView> {
-        Ok(RepositoryView {
+    pub fn edit(&self) -> anyhow::Result<RepositoryEditor> {
+        Ok(RepositoryEditor {
             repository: self,
             transaction: self.database.write_tx()?,
         })
     }
 }
 
-/// A view on a [Repository] that can be used to read or write data.
+/// A view on a [Repository].
 ///
-/// This is the main interface for interacting with a [Repository].
+/// This is the main interface to read data from a [Repository].
 pub struct RepositoryView<'repo> {
     /// The underlying [Repository].
     #[expect(dead_code, reason = "will be used in the future")]
     repository: &'repo Repository,
 
-    /// The [Transaction] being used by this view.
+    /// The [ReadTransaction] being used by this view.
     #[expect(dead_code, reason = "will be used in the future")]
-    transaction: Transaction<'repo>,
+    transaction: ReadTransaction<'repo>,
+}
+
+/// A [Repository] editor.
+///
+/// This is the main interface to edit data in a [Repository].
+pub struct RepositoryEditor<'repo> {
+    /// The underlying [Repository].
+    #[expect(dead_code, reason = "will be used in the future")]
+    repository: &'repo Repository,
+
+    /// The [WriteTransaction] being used by this editor.
+    #[expect(dead_code, reason = "will be used in the future")]
+    transaction: WriteTransaction<'repo>,
 }
