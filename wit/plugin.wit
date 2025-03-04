@@ -64,16 +64,13 @@ world document-plugin {
         write: func(key: list<u8>, value: option<list<u8>>);
     }
 
-    /// Represents the hash of content stored in the global registry.
-    type content-hash = list<u8>;
-
     /// A read-only interface for accessing the global registry.
     resource read-registry {
         /// Reads a portion of the content associated with the given hash.
         ///
         /// # Arguments
         ///
-        /// * `hash` - The content hash of the content to read.
+        /// * `content-hash` - The content hash of the content to read.
         /// * `start` - The starting index to read from.
         /// * `length` - The length of bytes to read.
         ///
@@ -81,19 +78,19 @@ world document-plugin {
         ///
         /// The portion of the content.
         /// If the content does not exist, returns `none`.
-        read: func(hash: content-hash, start: u64, length: option<u64>) -> option<list<u8>>;
+        read: func(content-hash: string, start: u64, length: option<u64>) -> option<list<u8>>;
 
         /// Gets the size of the content associated with the given hash.
         ///
         /// # Arguments
         ///
-        /// * `hash` - The content hash of the content to measure.
+        /// * `content-hash` - The content hash of the content to measure.
         ///
         /// # Returns
         ///
         /// The size of the content in bytes.
         /// If the content does not exist, returns `none`.
-        size: func(hash: content-hash) -> option<u64>;
+        size: func(content-hash: string) -> option<u64>;
     }
 
     /// A writable interface for accessing the global registry.
@@ -102,7 +99,7 @@ world document-plugin {
         ///
         /// # Arguments
         ///
-        /// * `hash` - The content hash of the content to read.
+        /// * `content-hash` - The content hash of the content to read.
         /// * `start` - The starting index to read from.
         /// * `length` - The length of bytes to read.
         ///
@@ -110,19 +107,19 @@ world document-plugin {
         ///
         /// The portion of the content.
         /// If the content does not exist, returns `none`.
-        read: func(hash: content-hash, start: u64, length: option<u64>) -> option<list<u8>>;
+        read: func(content-hash: string, start: u64, length: option<u64>) -> option<list<u8>>;
 
         /// Gets the size of the content associated with the given hash.
         ///
         /// # Arguments
         ///
-        /// * `hash` - The content hash of the content to measure.
+        /// * `content-hash` - The content hash of the content to measure.
         ///
         /// # Returns
         ///
         /// The size of the content in bytes.
         /// If the content does not exist, returns `none`.
-        size: func(hash: content-hash) -> option<u64>;
+        size: func(content-hash: string) -> option<u64>;
 
         /// Writes data to the global registry and returns the content hash.
         ///
@@ -135,14 +132,14 @@ world document-plugin {
         /// # Returns
         ///
         /// The content hash of the written data.
-        write: func(data: list<u8>) -> content-hash;
+        write: func(data: list<u8>) -> string;
 
         /// Cuts a portion of the content associated with the given hash and returns a new content hash
         /// associated with the cut portion.
         ///
         /// # Arguments
         ///
-        /// * `hash` - The content hash of the content to cut.
+        /// * `content-hash` - The content hash of the content to cut.
         /// * `start` - The starting index to cut from.
         /// * `length` - The length of bytes to cut.
         ///
@@ -150,19 +147,16 @@ world document-plugin {
         ///
         /// The content hash of the cut portion.
         /// If the content does not exist, returns `none`.
-        cut: func(hash: content-hash, start: u64, length: option<u64>) -> option<content-hash>;
+        cut: func(content-hash: string, start: u64, length: option<u64>) -> option<string>;
     }
-
-    /// The hash of a change made to the document.
-    type change-hash = list<u8>;
 
     /// A change made to the document.
     record change {
         /// The hashes of the changes that this change depends on.
-        dependencies: list<change-hash>,
+        dependencies: list<string>,
 
         /// The hashes of the contents used by this change.
-        used-contents: list<content-hash>,
+        used-contents: list<string>,
 
         /// Plugin-specific data associated with this change.
         plugin-data: list<u8>,
@@ -177,25 +171,25 @@ world document-plugin {
         ///
         /// # Arguments
         ///
-        /// * `hash` - The change hash of the change to retrieve.
+        /// * `change-hash` - The change hash of the change to retrieve.
         ///
         /// # Returns
         ///
         /// The change associated with the given hash.
         /// If the change is not applied to the document, returns `none`.
-        get-change: func(hash: change-hash) -> option<change>;
+        get-change: func(change-hash: string) -> option<change>;
 
         /// Retrieves the hashes of changes that depend on the given change.
         ///
         /// # Arguments
         ///
-        /// * `hash` - The change hash of the change to find dependent changes for.
+        /// * `change-hash` - The change hash of the change to find dependent changes for.
         ///
         /// # Returns
         ///
         /// A list of change hashes that depend on the given change.
         /// If no changes depend on the given change, returns an empty list.
-        dependent-changes: func(hash: change-hash) -> list<change-hash>;
+        dependent-changes: func(change-hash: string) -> list<string>;
     }
 
     /// A renderer for a document.
@@ -214,8 +208,8 @@ world document-plugin {
         ///
         /// # Arguments
         ///
-        /// * `content` - The content hash of the content to render.
-        render-content: func(content: content-hash);
+        /// * `content-hash` - The content hash of the content to render.
+        render-content: func(content-hash: string);
     }
 
     /// Render the current state of the document into bytes using the given renderer.
@@ -250,7 +244,7 @@ world document-plugin {
         registry: borrow<write-registry>,
         document: borrow<document>,
         store: borrow<read-kv-store>,
-        target-content: content-hash,
+        target-content: string,
     ) -> option<change>;
 
     /// Apply a change to the document, updating its state accordingly.
@@ -266,7 +260,7 @@ world document-plugin {
         registry: borrow<read-registry>,
         document: borrow<document>,
         store: borrow<write-kv-store>,
-        change-hash: change-hash,
+        change-hash: string,
         change: change,
     );
 
@@ -282,6 +276,6 @@ world document-plugin {
         registry: borrow<read-registry>,
         document: borrow<document>,
         store: borrow<write-kv-store>,
-        change-hash: change-hash,
+        change-hash: string,
     );
 }
