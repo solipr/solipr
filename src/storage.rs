@@ -1,7 +1,7 @@
 //! The storage system for Solipr.
 
 use std::fs::{self, File};
-use std::io::{self, Read, Write};
+use std::io::{self, Read, Seek, Write};
 use std::marker::PhantomData;
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
@@ -232,7 +232,7 @@ impl Registry {
     /// # Errors
     ///
     /// An error will be returned if the content could not be read.
-    pub fn read(&self, hash: ContentHash) -> anyhow::Result<Option<impl Read>> {
+    pub fn read(&self, hash: ContentHash) -> anyhow::Result<Option<impl Read + Seek>> {
         let encoded_hash = bs58::encode(hash.as_bytes()).into_string();
         match File::open(
             self.folder
@@ -240,6 +240,26 @@ impl Registry {
                 .join(&encoded_hash[2..]),
         ) {
             Ok(file) => Ok(Some(file)),
+            Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(None),
+            Err(error) => Err(error.into()),
+        }
+    }
+
+    /// Returns the size of the content with the given hash.
+    ///
+    /// Returns `None` if the content is not found.
+    ///
+    /// # Errors
+    ///
+    /// An error will be returned if the size could not be read.
+    pub fn size(&self, hash: ContentHash) -> anyhow::Result<Option<u64>> {
+        let encoded_hash = bs58::encode(hash.as_bytes()).into_string();
+        let folder = self
+            .folder
+            .join(&encoded_hash[..2])
+            .join(&encoded_hash[2..]);
+        match folder.metadata() {
+            Ok(metadata) => Ok(Some(metadata.len())),
             Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(None),
             Err(error) => Err(error.into()),
         }
