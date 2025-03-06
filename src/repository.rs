@@ -30,53 +30,53 @@ impl Repository {
         Ok(Self { registry, database })
     }
 
-    /// Opens a read-only view on the [Repository].
+    /// Opens a read-only transaction on the [Repository].
     ///
     /// # Errors
     ///
     /// See [`Database::read_tx`].
-    pub fn read(&self) -> anyhow::Result<RepositoryView> {
-        Ok(RepositoryView {
+    pub fn read(&self) -> anyhow::Result<ReadRepository> {
+        Ok(ReadRepository {
             repository: self,
             transaction: self.database.read_tx()?,
         })
     }
 
-    /// Opens an editor on the [Repository].
+    /// Opens a read-write transaction on the [Repository].
     ///
     /// # Errors
     ///
     /// See [`Database::write_tx`].
-    pub fn edit(&self) -> anyhow::Result<RepositoryEditor> {
-        Ok(RepositoryEditor {
+    pub fn write(&self) -> anyhow::Result<WriteRepository> {
+        Ok(WriteRepository {
             repository: self,
             transaction: self.database.write_tx()?,
         })
     }
 }
 
-/// A view on a [Repository].
+/// A read-only transaction on a [Repository].
 ///
 /// This is the main interface to read data from a [Repository].
-pub struct RepositoryView<'repo> {
+pub struct ReadRepository<'repo> {
     /// The underlying [Repository].
     #[expect(dead_code, reason = "will be used in the future")]
     repository: &'repo Repository,
 
-    /// The [`ReadTransaction`] being used by this view.
+    /// The [`ReadTransaction`] being used by this [`ReadRepository`].
     #[expect(dead_code, reason = "will be used in the future")]
     transaction: ReadTransaction<'repo>,
 }
 
-/// A [Repository] editor.
+/// A read-write transaction on a [Repository].
 ///
-/// This is the main interface to edit data in a [Repository].
-pub struct RepositoryEditor<'repo> {
+/// This is the main interface to write data to a [Repository].
+pub struct WriteRepository<'repo> {
     /// The underlying [Repository].
     #[expect(dead_code, reason = "will be used in the future")]
     repository: &'repo Repository,
 
-    /// The [`WriteTransaction`] being used by this editor.
+    /// The [`WriteTransaction`] being used by this [`WriteRepository`].
     #[expect(dead_code, reason = "will be used in the future")]
     transaction: WriteTransaction<'repo>,
 }
