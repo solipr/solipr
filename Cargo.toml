@@ -18,7 +18,7 @@ sha2 = "0.10.8"
 fjall = "2.6.7"
 bs58 = "0.5.1"
 directories = "6.0.0"
-config = "0.15.8"
+config = "0.15.9"
 wasmtime = "30.0.2"
 
 [lints.rust]
