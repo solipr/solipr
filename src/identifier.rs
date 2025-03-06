@@ -66,3 +66,31 @@ impl FromStr for RepositoryId {
         )))
     }
 }
+
+/// The identifier of a document in a
+/// [Repository](crate::repository::Repository).
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct DocumentId(Uuid);
+
+impl Debug for DocumentId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "D{}", bs58::encode(self.0.as_bytes()).into_string())
+    }
+}
+
+impl Display for DocumentId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "D{}", bs58::encode(self.0.as_bytes()).into_string())
+    }
+}
+
+impl FromStr for DocumentId {
+    type Err = anyhow::Error;
+
+    fn from_str(mut value: &str) -> Result<Self, Self::Err> {
+        value = value.trim().strip_prefix("D").context("missing prefix")?;
+        Ok(Self(Uuid::from_bytes(
+            bs58::decode(value.as_bytes()).into_array_const()?,
+        )))
+    }
+}
