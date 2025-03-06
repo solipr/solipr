@@ -1,7 +1,7 @@
 //! Utilities to interact with a Solipr repository.
 
 use crate::config::CONFIG;
-use crate::identifier::RepositoryId;
+use crate::identifier::{DocumentId, RepositoryId};
 use crate::storage::{Database, ReadTransaction, Registry, WriteTransaction};
 
 /// A Solipr repository.
@@ -68,6 +68,28 @@ pub struct ReadRepository<'repo> {
     transaction: ReadTransaction<'repo>,
 }
 
+impl ReadRepository<'_> {
+    /// Opens a document from this [`ReadRepository`].
+    #[must_use]
+    pub const fn open(&self, id: DocumentId) -> ReadDocument<'_> {
+        ReadDocument {
+            id,
+            repository: self,
+        }
+    }
+}
+
+/// A read-only document from a [`ReadRepository`].
+pub struct ReadDocument<'tx> {
+    /// The identifier of the document.
+    #[expect(dead_code, reason = "will be used in the future")]
+    id: DocumentId,
+
+    /// The underlying [`ReadRepository`].
+    #[expect(dead_code, reason = "will be used in the future")]
+    repository: &'tx ReadRepository<'tx>,
+}
+
 /// A read-write transaction on a [Repository].
 ///
 /// This is the main interface to write data to a [Repository].
@@ -79,4 +101,26 @@ pub struct WriteRepository<'repo> {
     /// The [`WriteTransaction`] being used by this [`WriteRepository`].
     #[expect(dead_code, reason = "will be used in the future")]
     transaction: WriteTransaction<'repo>,
+}
+
+impl WriteRepository<'_> {
+    /// Opens a document from this [`WriteRepository`].
+    #[must_use]
+    pub const fn open(&self, id: DocumentId) -> WriteDocument<'_> {
+        WriteDocument {
+            id,
+            repository: self,
+        }
+    }
+}
+
+/// A read-write document from a [`WriteRepository`].
+pub struct WriteDocument<'tx> {
+    /// The identifier of the document.
+    #[expect(dead_code, reason = "will be used in the future")]
+    id: DocumentId,
+
+    /// The underlying [`WriteRepository`].
+    #[expect(dead_code, reason = "will be used in the future")]
+    repository: &'tx WriteRepository<'tx>,
 }
