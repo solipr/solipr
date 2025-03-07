@@ -20,6 +20,7 @@ bs58 = "0.5.1"
 directories = "6.0.0"
 config = "0.15.9"
 wasmtime = "30.0.2"
+borsh = { version = "1.5.5", features = ["derive"] }
 
 [lints.rust]
 missing_docs = "warn"
