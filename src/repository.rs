@@ -9,6 +9,9 @@ use crate::storage::{Database, ReadTransaction, Registry, WriteTransaction};
 
 /// A Solipr repository.
 pub struct Repository {
+    /// The identifier of the repository.
+    id: RepositoryId,
+
     /// The [Registry] of the repository.
     #[expect(dead_code, reason = "will be used in the future")]
     registry: Registry,
@@ -30,7 +33,17 @@ impl Repository {
                 .data_folder
                 .join(format!("repositories/{repository_id}")),
         )?;
-        Ok(Self { registry, database })
+        Ok(Self {
+            id: repository_id,
+            registry,
+            database,
+        })
+    }
+
+    /// Returns the identifier of the repository.
+    #[must_use]
+    pub const fn id(&self) -> RepositoryId {
+        self.id
     }
 
     /// Opens a read-only transaction on the [Repository].
