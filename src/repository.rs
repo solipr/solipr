@@ -162,6 +162,15 @@ impl WriteRepository<'_> {
             repository: self,
         }
     }
+
+    /// Commits the transaction.
+    ///
+    /// # Errors
+    ///
+    /// See [`WriteTransaction::commit`].
+    pub fn commit(self) -> anyhow::Result<()> {
+        self.transaction.commit()
+    }
 }
 
 /// A read-write document from a [`WriteRepository`].
