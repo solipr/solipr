@@ -77,6 +77,7 @@ pub struct ReadRepository<'repo> {
     repository: &'repo Repository,
 
     /// The [`ReadTransaction`] being used by this [`ReadRepository`].
+    #[expect(dead_code, reason = "will be used in the future")]
     transaction: ReadTransaction<'repo>,
 }
 
@@ -97,6 +98,7 @@ pub struct ReadDocument<'tx> {
     id: DocumentId,
 
     /// The underlying [`ReadRepository`].
+    #[expect(dead_code, reason = "will be used in the future")]
     repository: &'tx ReadRepository<'tx>,
 }
 
@@ -146,6 +148,7 @@ pub struct WriteDocument<'tx> {
     id: DocumentId,
 
     /// The underlying [`WriteRepository`].
+    #[expect(dead_code, reason = "will be used in the future")]
     repository: &'tx WriteRepository<'tx>,
 }
 
