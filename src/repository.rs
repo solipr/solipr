@@ -1,10 +1,7 @@
 //! Utilities to interact with a Solipr repository.
 
-use wasmtime::component::Resource;
-
 use crate::config::CONFIG;
 use crate::identifier::{DocumentId, RepositoryId};
-use crate::plugin::{Change, Document, HostDocument};
 use crate::storage::{Database, ReadTransaction, Registry, WriteTransaction};
 
 /// A Solipr repository.
@@ -80,6 +77,7 @@ pub struct ReadRepository<'repo> {
     repository: &'repo Repository,
 
     /// The [`ReadTransaction`] being used by this [`ReadRepository`].
+    #[expect(dead_code, reason = "will be used in the future")]
     transaction: ReadTransaction<'repo>,
 }
 
@@ -100,6 +98,7 @@ pub struct ReadDocument<'tx> {
     id: DocumentId,
 
     /// The underlying [`ReadRepository`].
+    #[expect(dead_code, reason = "will be used in the future")]
     repository: &'tx ReadRepository<'tx>,
 }
 
@@ -108,36 +107,6 @@ impl ReadDocument<'_> {
     #[must_use]
     pub const fn id(&self) -> DocumentId {
         self.id
-    }
-}
-
-impl HostDocument for ReadDocument<'_> {
-    fn get_change(
-        &mut self,
-        _: Resource<Document>,
-        change_hash: String,
-    ) -> wasmtime::Result<Option<Change>> {
-        let change_key = format!("{}/changes/{}", self.id, change_hash);
-        match self.repository.transaction.get(change_key)? {
-            Some(value) => Ok(borsh::from_slice(&value)?),
-            None => Ok(None),
-        }
-    }
-
-    fn dependent_changes(
-        &mut self,
-        _: Resource<Document>,
-        change_hash: String,
-    ) -> wasmtime::Result<Vec<String>> {
-        let change_key = format!("{}/dependents/{}", self.id, change_hash);
-        match self.repository.transaction.get(change_key)? {
-            Some(value) => Ok(borsh::from_slice(&value)?),
-            None => Ok(Vec::new()),
-        }
-    }
-
-    fn drop(&mut self, _: Resource<Document>) -> wasmtime::Result<()> {
-        Ok(())
     }
 }
 
@@ -179,6 +148,7 @@ pub struct WriteDocument<'tx> {
     id: DocumentId,
 
     /// The underlying [`WriteRepository`].
+    #[expect(dead_code, reason = "will be used in the future")]
     repository: &'tx WriteRepository<'tx>,
 }
 
@@ -187,35 +157,5 @@ impl WriteDocument<'_> {
     #[must_use]
     pub const fn id(&self) -> DocumentId {
         self.id
-    }
-}
-
-impl HostDocument for WriteDocument<'_> {
-    fn get_change(
-        &mut self,
-        _: Resource<Document>,
-        change_hash: String,
-    ) -> wasmtime::Result<Option<Change>> {
-        let change_key = format!("{}/changes/{}", self.id, change_hash);
-        match self.repository.transaction.get(change_key)? {
-            Some(value) => Ok(borsh::from_slice(&value)?),
-            None => Ok(None),
-        }
-    }
-
-    fn dependent_changes(
-        &mut self,
-        _: Resource<Document>,
-        change_hash: String,
-    ) -> wasmtime::Result<Vec<String>> {
-        let change_key = format!("{}/dependents/{}", self.id, change_hash);
-        match self.repository.transaction.get(change_key)? {
-            Some(value) => Ok(borsh::from_slice(&value)?),
-            None => Ok(Vec::new()),
-        }
-    }
-
-    fn drop(&mut self, _: Resource<Document>) -> wasmtime::Result<()> {
-        Ok(())
     }
 }

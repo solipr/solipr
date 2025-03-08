@@ -1,19 +1,16 @@
 //! The storage system for Solipr.
 
 use std::fs::{self, File};
-use std::io::{self, Read, Seek, SeekFrom, Write};
+use std::io::{self, Read, Seek, Write};
 use std::marker::PhantomData;
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
-use std::str::FromStr;
 
 use fjall::{Config, PartitionCreateOptions, TransactionalKeyspace, TransactionalPartitionHandle};
 use sha2::{Digest, Sha256};
 use uuid::Uuid;
-use wasmtime::component::Resource;
 
 use crate::identifier::ContentHash;
-use crate::plugin::{HostReadRegistry, HostWriteRegistry, ReadRegistry, WriteRegistry};
 
 /// A database that can be used to store and retrieve bytes using transactions.
 pub struct Database {
@@ -324,133 +321,5 @@ impl Registry {
 
         // Return the hash of the content
         Ok(hash)
-    }
-}
-
-impl HostReadRegistry for Registry {
-    fn read(
-        &mut self,
-        _: Resource<ReadRegistry>,
-        content_hash: String,
-        start: u64,
-        length: Option<u64>,
-    ) -> wasmtime::Result<Option<Vec<u8>>> {
-        let encoded_hash =
-            bs58::encode(ContentHash::from_str(&content_hash)?.as_bytes()).into_string();
-        let file = match File::open(
-            self.folder
-                .join(&encoded_hash[..2])
-                .join(&encoded_hash[2..]),
-        ) {
-            Ok(file) => Ok::<_, anyhow::Error>(Some(file)),
-            Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(None),
-            Err(error) => Err(error.into()),
-        }?;
-        match file {
-            Some(mut file) => {
-                file.seek(SeekFrom::Start(start))?;
-                if let Some(length) = length {
-                    let mut buffer = Vec::with_capacity(length.try_into()?);
-                    file.take(length).read_to_end(&mut buffer)?;
-                    Ok(Some(buffer))
-                } else {
-                    let mut buffer = Vec::with_capacity(
-                        file.metadata()?.len().saturating_sub(start).try_into()?,
-                    );
-                    file.read_to_end(&mut buffer)?;
-                    Ok(Some(buffer))
-                }
-            }
-            None => Ok(None),
-        }
-    }
-
-    fn size(
-        &mut self,
-        _: Resource<ReadRegistry>,
-        content_hash: String,
-    ) -> wasmtime::Result<Option<u64>> {
-        Self::size(self, ContentHash::from_str(&content_hash)?)
-    }
-
-    fn drop(&mut self, _: Resource<ReadRegistry>) -> wasmtime::Result<()> {
-        Ok(())
-    }
-}
-
-impl HostWriteRegistry for Registry {
-    fn read(
-        &mut self,
-        _: Resource<WriteRegistry>,
-        content_hash: String,
-        start: u64,
-        length: Option<u64>,
-    ) -> wasmtime::Result<Option<Vec<u8>>> {
-        let encoded_hash =
-            bs58::encode(ContentHash::from_str(&content_hash)?.as_bytes()).into_string();
-        let file = match File::open(
-            self.folder
-                .join(&encoded_hash[..2])
-                .join(&encoded_hash[2..]),
-        ) {
-            Ok(file) => Ok::<_, anyhow::Error>(Some(file)),
-            Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(None),
-            Err(error) => Err(error.into()),
-        }?;
-        match file {
-            Some(mut file) => {
-                file.seek(SeekFrom::Start(start))?;
-                if let Some(length) = length {
-                    let mut buffer = Vec::with_capacity(length.try_into()?);
-                    file.take(length).read_to_end(&mut buffer)?;
-                    Ok(Some(buffer))
-                } else {
-                    let mut buffer = Vec::with_capacity(
-                        file.metadata()?.len().saturating_sub(start).try_into()?,
-                    );
-                    file.read_to_end(&mut buffer)?;
-                    Ok(Some(buffer))
-                }
-            }
-            None => Ok(None),
-        }
-    }
-
-    fn size(
-        &mut self,
-        _: Resource<WriteRegistry>,
-        content_hash: String,
-    ) -> wasmtime::Result<Option<u64>> {
-        Self::size(self, ContentHash::from_str(&content_hash)?)
-    }
-
-    fn write(&mut self, _: Resource<WriteRegistry>, data: Vec<u8>) -> wasmtime::Result<String> {
-        Self::write(self, &data[..]).map(|content_hash| content_hash.to_string())
-    }
-
-    fn cut(
-        &mut self,
-        _: Resource<WriteRegistry>,
-        content_hash: String,
-        start: u64,
-        length: Option<u64>,
-    ) -> wasmtime::Result<Option<String>> {
-        let data = Self::read(self, ContentHash::from_str(&content_hash)?)?;
-        match data {
-            Some(mut data) => {
-                data.seek(SeekFrom::Start(start))?;
-                let content_hash = if let Some(length) = length {
-                    Self::write(self, data.take(length))
-                } else {
-                    Self::write(self, data)
-                }?;
-                Ok(Some(content_hash.to_string()))
-            }
-            None => Ok(None),
-        }
-    }
-
-    fn drop(&mut self, _: Resource<WriteRegistry>) -> wasmtime::Result<()> {
-        Ok(())
     }
 }
