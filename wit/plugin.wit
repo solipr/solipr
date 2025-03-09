@@ -16,7 +16,7 @@ world document-plugin {
         /// If the key does not exist in the store, returns `none`.
         read: func(key: list<u8>) -> option<list<u8>>;
 
-        /// Retrieves all keys with the given prefix.
+        /// Retrieves all keys (and their values) with the given prefix.
         ///
         /// # Arguments
         ///
@@ -24,9 +24,9 @@ world document-plugin {
         ///
         /// # Returns
         ///
-        /// A list of keys that match the given prefix.
+        /// A list of keys with their values that match the given prefix.
         /// If no keys match the prefix, returns an empty list.
-        keys: func(prefix: list<u8>) -> list<list<u8>>;
+        keys: func(prefix: list<u8>) -> list<tuple<list<u8>, list<u8>>>;
     }
 
     /// A writable interface for accessing the plugin's key-value store.
@@ -43,7 +43,7 @@ world document-plugin {
         /// If the key does not exist in the store, returns `none`.
         read: func(key: list<u8>) -> option<list<u8>>;
 
-        /// Retrieves all keys with the given prefix.
+        /// Retrieves all keys (and their values) with the given prefix.
         ///
         /// # Arguments
         ///
@@ -51,9 +51,9 @@ world document-plugin {
         ///
         /// # Returns
         ///
-        /// A list of keys that match the given prefix.
+        /// A list of keys with their values that match the given prefix.
         /// If no keys match the prefix, returns an empty list.
-        keys: func(prefix: list<u8>) -> list<list<u8>>;
+        keys: func(prefix: list<u8>) -> list<tuple<list<u8>, list<u8>>>;
 
         /// Writes a value to the key-value store.
         ///
