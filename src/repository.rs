@@ -4,6 +4,7 @@ use std::collections::HashSet;
 use std::marker::PhantomData;
 
 use borsh::{BorshDeserialize, BorshSerialize};
+use sha2::{Digest, Sha256};
 
 use crate::config::CONFIG;
 use crate::identifier::{ChangeHash, ContentHash, DocumentId, RepositoryId};
@@ -319,4 +320,14 @@ pub struct Change {
 
     /// Plugin-specific data associated with this [Change].
     pub plugin_data: Vec<u8>,
+}
+
+impl Change {
+    /// Calculates the [`ChangeHash`] corresponding to this [Change].
+    #[must_use]
+    pub fn hash(&self) -> ChangeHash {
+        let mut hasher = Sha256::new();
+        let _ = borsh::to_writer(&mut hasher, &self);
+        ChangeHash(hasher.finalize().into())
+    }
 }
