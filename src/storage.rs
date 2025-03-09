@@ -201,7 +201,7 @@ impl WriteTransaction<'_> {
 /// This trait enables the [Database] implementation to perform additional
 /// actions when a retrieved value is dropped. It is also useful for avoiding
 /// the need to clone the data from the [Database].
-pub struct Slice<'tx>(fjall::Slice, PhantomData<&'tx ()>);
+pub struct Slice<'tx>(pub(crate) fjall::Slice, pub(crate) PhantomData<&'tx ()>);
 
 impl Deref for Slice<'_> {
     type Target = [u8];
