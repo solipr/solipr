@@ -11,12 +11,11 @@ edition = "2024"
 
 [dependencies]
 uuid = { version = "1.15.1", features = ["borsh", "v7"] }
+borsh = { version = "1.5.5", features = ["derive"] }
 anyhow = "1.0.97"
 sha2 = "0.10.8"
 fjall = "2.6.7"
 bs58 = "0.5.1"
-wasmtime = "30.0.2"
-borsh = { version = "1.5.5", features = ["derive"] }
 
 [lints.rust]
 missing_docs = "warn"
