@@ -1,8 +1,13 @@
 //! Utilities to interact with a Solipr repository.
 
+use std::collections::HashSet;
+use std::marker::PhantomData;
+
+use borsh::{BorshDeserialize, BorshSerialize};
+
 use crate::config::CONFIG;
-use crate::identifier::{DocumentId, RepositoryId};
-use crate::storage::{Database, ReadTransaction, Registry, WriteTransaction};
+use crate::identifier::{ChangeHash, ContentHash, DocumentId, RepositoryId};
+use crate::storage::{Database, ReadTransaction, Registry, Slice, WriteTransaction};
 
 /// A Solipr repository.
 pub struct Repository {
@@ -77,7 +82,6 @@ pub struct ReadRepository<'repo> {
     repository: &'repo Repository,
 
     /// The [`ReadTransaction`] being used by this [`ReadRepository`].
-    #[expect(dead_code, reason = "will be used in the future")]
     transaction: ReadTransaction<'repo>,
 }
 
@@ -98,7 +102,6 @@ pub struct ReadDocument<'tx> {
     id: DocumentId,
 
     /// The underlying [`ReadRepository`].
-    #[expect(dead_code, reason = "will be used in the future")]
     repository: &'tx ReadRepository<'tx>,
 }
 
@@ -107,6 +110,76 @@ impl ReadDocument<'_> {
     #[must_use]
     pub const fn id(&self) -> DocumentId {
         self.id
+    }
+
+    /// Returns the value associated with the given key in the document store.
+    ///
+    /// # Errors
+    ///
+    /// This method should return an error if there is an fatal error that can't
+    /// be recovered.
+    pub fn store_read(&self, key: impl AsRef<[u8]>) -> anyhow::Result<Option<Slice>> {
+        let mut final_key = format!("store/{}/", self.id).into_bytes();
+        final_key.extend_from_slice(key.as_ref());
+        self.repository.transaction.get(final_key)
+    }
+
+    /// Retrieves all keys with the given prefix in the document store.
+    ///
+    /// # Errors
+    ///
+    /// This method should return an error if there is an fatal error that can't
+    /// be recovered.
+    pub fn store_keys(
+        &self,
+        prefix: impl AsRef<[u8]>,
+    ) -> impl Iterator<Item = Result<(Slice, Slice), anyhow::Error>> {
+        let mut final_prefix = format!("store/{}/", self.id).into_bytes();
+        let base_len = final_prefix.len();
+        final_prefix.extend_from_slice(prefix.as_ref());
+        self.repository
+            .transaction
+            .keys(final_prefix)
+            .map(move |entry| match entry {
+                Ok((key, value)) => Ok((Slice(key.0.slice(base_len..), PhantomData), value)),
+                Err(e) => Err(e),
+            })
+    }
+
+    /// Returns the [Change] with the given [`ChangeHash`] applied to this
+    /// document.
+    ///
+    /// # Errors
+    ///
+    /// This method should return an error if there is an fatal error that can't
+    /// be recovered.
+    pub fn change(self, hash: ChangeHash) -> anyhow::Result<Option<Change>> {
+        match self
+            .repository
+            .transaction
+            .get(format!("changes/{}/{hash}", self.id))?
+        {
+            Some(value) => Ok(Some(borsh::from_slice(&value)?)),
+            None => Ok(None),
+        }
+    }
+
+    /// Returns the hashes of the [Change]s that depend on the given
+    /// [`ChangeHash`] in this document.
+    ///
+    /// # Errors
+    ///
+    /// This method should return an error if there is an fatal error that can't
+    /// be recovered.
+    pub fn dependents(&self, change_hash: ChangeHash) -> anyhow::Result<HashSet<ChangeHash>> {
+        match self
+            .repository
+            .transaction
+            .get(format!("dependents/{}/{change_hash}", self.id))?
+        {
+            Some(value) => Ok(borsh::from_slice(&value)?),
+            None => Ok(HashSet::new()),
+        }
     }
 }
 
@@ -148,7 +221,6 @@ pub struct WriteDocument<'tx> {
     id: DocumentId,
 
     /// The underlying [`WriteRepository`].
-    #[expect(dead_code, reason = "will be used in the future")]
     repository: &'tx WriteRepository<'tx>,
 }
 
@@ -158,4 +230,93 @@ impl WriteDocument<'_> {
     pub const fn id(&self) -> DocumentId {
         self.id
     }
+
+    /// Returns the value associated with the given key in the document store.
+    ///
+    /// # Errors
+    ///
+    /// This method should return an error if there is an fatal error that can't
+    /// be recovered.
+    pub fn store_read(&self, key: impl AsRef<[u8]>) -> anyhow::Result<Option<Slice>> {
+        let mut final_key = format!("store/{}/", self.id).into_bytes();
+        final_key.extend_from_slice(key.as_ref());
+        self.repository.transaction.get(final_key)
+    }
+
+    /// Retrieves all keys with the given prefix in the document store.
+    ///
+    /// # Errors
+    ///
+    /// This method should return an error if there is an fatal error that can't
+    /// be recovered.
+    pub fn store_keys(
+        &self,
+        prefix: impl AsRef<[u8]>,
+    ) -> impl Iterator<Item = Result<(Slice, Slice), anyhow::Error>> {
+        let mut final_prefix = format!("store/{}/", self.id).into_bytes();
+        let base_len = final_prefix.len();
+        final_prefix.extend_from_slice(prefix.as_ref());
+        self.repository
+            .transaction
+            .keys(final_prefix)
+            .map(move |entry| match entry {
+                Ok((key, value)) => Ok((Slice(key.0.slice(base_len..), PhantomData), value)),
+                Err(e) => Err(e),
+            })
+    }
+
+    /// Returns the [Change] with the given [`ChangeHash`] applied to this
+    /// document.
+    ///
+    /// # Errors
+    ///
+    /// This method should return an error if there is an fatal error that can't
+    /// be recovered.
+    pub fn change(self, hash: ChangeHash) -> anyhow::Result<Option<Change>> {
+        match self
+            .repository
+            .transaction
+            .get(format!("changes/{}/{hash}", self.id))?
+        {
+            Some(value) => Ok(Some(borsh::from_slice(&value)?)),
+            None => Ok(None),
+        }
+    }
+
+    /// Returns the hashes of the [Change]s that depend on the given
+    /// [`ChangeHash`] in this document.
+    ///
+    /// # Errors
+    ///
+    /// This method should return an error if there is an fatal error that can't
+    /// be recovered.
+    pub fn dependents(&self, change_hash: ChangeHash) -> anyhow::Result<HashSet<ChangeHash>> {
+        match self
+            .repository
+            .transaction
+            .get(format!("dependents/{}/{change_hash}", self.id))?
+        {
+            Some(value) => Ok(borsh::from_slice(&value)?),
+            None => Ok(HashSet::new()),
+        }
+    }
+}
+
+/// A change made to a document in a [Repository].
+#[derive(BorshDeserialize, BorshSerialize)]
+pub struct Change {
+    /// The dependencies of this [Change].
+    ///
+    /// This [Change] will not be able to be applied until all its dependencies
+    /// have been applied.
+    pub dependencies: HashSet<ChangeHash>,
+
+    /// The hashes of the contents used by this [Change].
+    ///
+    /// This [Change] will not be able to be applied until all these contents
+    /// are present in the registry.
+    pub used_contents: HashSet<ContentHash>,
+
+    /// Plugin-specific data associated with this [Change].
+    pub plugin_data: Vec<u8>,
 }
