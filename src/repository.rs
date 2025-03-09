@@ -2,45 +2,30 @@
 
 use std::collections::HashSet;
 use std::marker::PhantomData;
+use std::path::Path;
 
 use borsh::{BorshDeserialize, BorshSerialize};
 use sha2::{Digest, Sha256};
 
-use crate::config::CONFIG;
-use crate::identifier::{ChangeHash, ContentHash, DocumentId, RepositoryId};
+use crate::identifier::{ChangeHash, ContentHash, DocumentId};
 use crate::storage::{Database, ReadTransaction, Slice, WriteTransaction};
 
 /// A Solipr repository.
 pub struct Repository {
-    /// The identifier of the repository.
-    id: RepositoryId,
-
     /// The [Database] of the repository.
     database: Database,
 }
 
 impl Repository {
-    /// Opens the [Repository] with the given [`RepositoryId`].
+    /// Opens the [Repository] at the given path.
     ///
     /// # Errors
     ///
     /// An error will be returned if the repository could not be opened.
-    pub fn open(repository_id: RepositoryId) -> anyhow::Result<Self> {
-        let database = Database::open(
-            CONFIG
-                .data_folder
-                .join(format!("repositories/{repository_id}")),
-        )?;
+    pub fn open(path: impl AsRef<Path>) -> anyhow::Result<Self> {
         Ok(Self {
-            id: repository_id,
-            database,
+            database: Database::open(path)?,
         })
-    }
-
-    /// Returns the identifier of the repository.
-    #[must_use]
-    pub const fn id(&self) -> RepositoryId {
-        self.id
     }
 
     /// Opens a read-only transaction on the [Repository].
