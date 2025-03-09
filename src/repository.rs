@@ -8,16 +8,12 @@ use sha2::{Digest, Sha256};
 
 use crate::config::CONFIG;
 use crate::identifier::{ChangeHash, ContentHash, DocumentId, RepositoryId};
-use crate::storage::{Database, ReadTransaction, Registry, Slice, WriteTransaction};
+use crate::storage::{Database, ReadTransaction, Slice, WriteTransaction};
 
 /// A Solipr repository.
 pub struct Repository {
     /// The identifier of the repository.
     id: RepositoryId,
-
-    /// The [Registry] of the repository.
-    #[expect(dead_code, reason = "will be used in the future")]
-    registry: Registry,
 
     /// The [Database] of the repository.
     database: Database,
@@ -30,7 +26,6 @@ impl Repository {
     ///
     /// An error will be returned if the repository could not be opened.
     pub fn open(repository_id: RepositoryId) -> anyhow::Result<Self> {
-        let registry = Registry::open(CONFIG.data_folder.join("registry"));
         let database = Database::open(
             CONFIG
                 .data_folder
@@ -38,7 +33,6 @@ impl Repository {
         )?;
         Ok(Self {
             id: repository_id,
-            registry,
             database,
         })
     }
