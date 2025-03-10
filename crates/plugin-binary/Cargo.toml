@@ -1,0 +1,16 @@
+[package]
+name = "solipr-plugin-binary"
+version = "0.0.1"
+description = "A plugin that manages binary files in Solipr"
+repository = "https://github.com/solipr/solipr"
+readme = "README.md"
+license = "MIT"
+keywords = ["vcs"]
+categories = ["development-tools"]
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+wit-bindgen = "0.40.0"
