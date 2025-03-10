@@ -313,10 +313,9 @@ impl WriteDocument<'_> {
 
         // Add the change to the database.
         let change_hash = change.hash();
-        let change_bytes = borsh::to_vec(&change)?;
-        self.repository.transaction.put(
+        self.repository.transaction.insert(
             format!("changes/{}/{change_hash}", self.id),
-            Some(change_bytes),
+            borsh::to_vec(&change)?,
         )?;
 
         // Update dependents.
@@ -329,7 +328,7 @@ impl WriteDocument<'_> {
             dependents.insert(change_hash);
             self.repository
                 .transaction
-                .put(&dependents_key, Some(borsh::to_vec(&dependents)?))?;
+                .insert(&dependents_key, borsh::to_vec(&dependents)?)?;
         }
 
         // Returns success.
@@ -372,10 +371,9 @@ impl WriteDocument<'_> {
         }
 
         // Remove the change from the database.
-        self.repository.transaction.put(
-            format!("changes/{}/{change_hash}", self.id),
-            None::<Vec<u8>>,
-        )?;
+        self.repository
+            .transaction
+            .remove(format!("changes/{}/{change_hash}", self.id))?;
 
         // Update dependents changes.
         for dependency in change.dependencies {
@@ -387,13 +385,11 @@ impl WriteDocument<'_> {
                 };
             dependents.remove(&change_hash);
             if dependents.is_empty() {
-                self.repository
-                    .transaction
-                    .put(&dependents_key, None::<Vec<u8>>)?;
+                self.repository.transaction.remove(&dependents_key)?;
             } else {
                 self.repository
                     .transaction
-                    .put(&dependents_key, Some(borsh::to_vec(&dependents)?))?;
+                    .insert(&dependents_key, borsh::to_vec(&dependents)?)?;
             }
         }
 
