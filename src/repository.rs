@@ -133,7 +133,7 @@ impl ReadDocument<'_> {
     ///
     /// This method should return an error if there is an fatal error that can't
     /// be recovered.
-    pub fn change(self, hash: ChangeHash) -> anyhow::Result<Option<Change>> {
+    pub fn change(&self, hash: ChangeHash) -> anyhow::Result<Option<Change>> {
         match self
             .repository
             .transaction
@@ -175,10 +175,10 @@ pub struct WriteRepository<'repo> {
     transaction: WriteTransaction<'repo>,
 }
 
-impl WriteRepository<'_> {
+impl<'repo> WriteRepository<'repo> {
     /// Opens a document from this [`WriteRepository`].
     #[must_use]
-    pub const fn open(&self, id: DocumentId) -> WriteDocument<'_> {
+    pub const fn open(&'repo mut self, id: DocumentId) -> WriteDocument<'repo> {
         WriteDocument {
             id,
             repository: self,
@@ -201,7 +201,7 @@ pub struct WriteDocument<'tx> {
     id: DocumentId,
 
     /// The underlying [`WriteRepository`].
-    repository: &'tx WriteRepository<'tx>,
+    repository: &'tx mut WriteRepository<'tx>,
 }
 
 impl WriteDocument<'_> {
@@ -252,7 +252,7 @@ impl WriteDocument<'_> {
     ///
     /// This method should return an error if there is an fatal error that can't
     /// be recovered.
-    pub fn change(self, hash: ChangeHash) -> anyhow::Result<Option<Change>> {
+    pub fn change(&self, hash: ChangeHash) -> anyhow::Result<Option<Change>> {
         match self
             .repository
             .transaction
@@ -279,6 +279,126 @@ impl WriteDocument<'_> {
             Some(value) => Ok(borsh::from_slice(&value)?),
             None => Ok(HashSet::new()),
         }
+    }
+
+    /// Apply a [Change] to the document.
+    ///
+    /// If the [Change] is already applied, this function does nothing.
+    ///
+    /// # Note
+    ///
+    /// This method does not call the plugin hooks. It is up to the caller to
+    /// call it before calling this function.
+    ///
+    /// # Errors
+    ///
+    /// If there is a fatal error that can't be recovered, this method should
+    /// return an [anyhow] error.
+    ///
+    /// If the [Change] can't be applied because
+    /// some of its dependencies are not applied, this method returns an error
+    /// with a set of the [`ChangeHash`] of the dependencies that need to be
+    /// applied first.
+    pub fn apply(&mut self, change: &Change) -> anyhow::Result<Result<(), HashSet<ChangeHash>>> {
+        // Check if all dependencies are already applied.
+        let mut needed_dependencies = HashSet::new();
+        for dependency in &change.dependencies {
+            if self.change(*dependency)?.is_none() {
+                needed_dependencies.insert(*dependency);
+            }
+        }
+        if !needed_dependencies.is_empty() {
+            return Ok(Err(needed_dependencies));
+        }
+
+        // Add the change to the database.
+        let change_hash = change.hash();
+        let change_bytes = borsh::to_vec(&change)?;
+        self.repository.transaction.put(
+            format!("changes/{}/{change_hash}", self.id),
+            Some(change_bytes),
+        )?;
+
+        // Update dependents.
+        for dependency in &change.dependencies {
+            let dependents_key = format!("dependents/{}/{dependency}", self.id);
+            let mut dependents = match self.repository.transaction.get(&dependents_key)? {
+                Some(value) => borsh::from_slice(&value)?,
+                None => HashSet::new(),
+            };
+            dependents.insert(change_hash);
+            self.repository
+                .transaction
+                .put(&dependents_key, Some(borsh::to_vec(&dependents)?))?;
+        }
+
+        // Returns success.
+        Ok(Ok(()))
+    }
+
+    /// Unapply a [Change] from the document.
+    ///
+    /// If the [Change] is not applied, this function does nothing.
+    ///
+    /// # Note
+    ///
+    /// This method does not call the plugin hooks. It is up to the caller to
+    /// call it before calling this function.
+    ///
+    /// # Errors
+    ///
+    /// If there is a fatal error that can't be recovered, this method should
+    /// return an [anyhow] error.
+    ///
+    /// If there is other [Change] that depends on this one, it returns an error
+    /// with a set of the [`ChangeHash`] of those changes.
+    pub fn unapply(
+        &mut self,
+        change_hash: ChangeHash,
+    ) -> anyhow::Result<Result<(), HashSet<ChangeHash>>> {
+        // Get the change from the database.
+        let Some(change) = self.change(change_hash)? else {
+            return Ok(Ok(()));
+        };
+
+        // Check dependents changes.
+        let dependents_key = format!("dependents/{}/{change_hash}", self.id);
+        let dependents = match self.repository.transaction.get(&dependents_key)? {
+            Some(value) => borsh::from_slice(&value)?,
+            None => HashSet::new(),
+        };
+        if !dependents.is_empty() {
+            return Ok(Err(dependents));
+        }
+
+        // Remove the change from the database.
+        self.repository.transaction.put(
+            format!("changes/{}/{change_hash}", self.id),
+            None::<Vec<u8>>,
+        )?;
+
+        // Update dependents changes.
+        for dependency in change.dependencies {
+            let dependents_key = format!("dependents/{}/{dependency}", self.id);
+            let mut dependents: HashSet<ChangeHash> =
+                match self.repository.transaction.get(&dependents_key)? {
+                    Some(value) => borsh::from_slice(&value)?,
+                    None => HashSet::new(),
+                };
+            dependents.remove(&change_hash);
+            if dependents.is_empty() {
+                self.repository
+                    .transaction
+                    .put(&dependents_key, None::<Vec<u8>>)?;
+            } else {
+                self.repository
+                    .transaction
+                    .put(&dependents_key, Some(borsh::to_vec(&dependents)?))?;
+            }
+        }
+
+        // Return success.
+        Ok(Ok(()))
     }
 }
 
