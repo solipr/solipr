@@ -154,28 +154,27 @@ impl WriteTransaction<'_> {
             .map(|slice| Slice(slice, PhantomData)))
     }
 
-    /// Put a value in the database. If there is already a value for this key,
-    /// it will be overwritten.
-    ///
-    /// If the `value` is `None`, this will remove the existing value for the
-    /// key.
-    ///
-    /// This method will return an error if the transaction is read-only.
+    /// Inserts a value into the database. If a value already exists for the
+    /// given key, it will be overwritten.
     ///
     /// # Errors
     ///
-    /// This method should return an error if the transaction is read-only or if
-    /// there is an fatal error that can't be recovered.
-    pub fn put(
-        &mut self,
-        key: impl AsRef<[u8]>,
-        value: Option<impl AsRef<[u8]>>,
-    ) -> anyhow::Result<()> {
-        if let Some(value) = value {
-            self.tx.insert(self.partition, key.as_ref(), value.as_ref());
-        } else {
-            self.tx.remove(self.partition, key.as_ref());
-        }
+    /// This method returns an error if there is a fatal error that cannot be
+    /// recovered from.
+    pub fn insert(&mut self, key: impl AsRef<[u8]>, value: impl AsRef<[u8]>) -> anyhow::Result<()> {
+        self.tx.insert(self.partition, key.as_ref(), value.as_ref());
+        Ok(())
+    }
+
+    /// Removes the value associated with the given key from the database. If no
+    /// value exists for the given key, this method does nothing.
+    ///
+    /// # Errors
+    ///
+    /// This method returns an error if there is a fatal error that cannot be
+    /// recovered from.
+    pub fn remove(&mut self, key: impl AsRef<[u8]>) -> anyhow::Result<()> {
+        self.tx.remove(self.partition, key.as_ref());
         Ok(())
     }
 
@@ -184,12 +183,10 @@ impl WriteTransaction<'_> {
     /// This method will apply all changes made in this transaction to the
     /// database in a single operation.
     ///
-    /// This method will return an error if the transaction is read-only.
-    ///
     /// # Errors
     ///
-    /// This method should return an error if the transaction is read-only or if
-    /// there is an fatal error that can't be recovered.
+    /// This method should return an error if there is an fatal error that can't
+    /// be recovered.
     pub fn commit(self) -> anyhow::Result<()> {
         self.tx.commit()?;
         Ok(())
