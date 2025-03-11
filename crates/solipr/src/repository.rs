@@ -1,55 +1,66 @@
 //! Utilities to interact with a Solipr repository.
 
 use std::collections::HashSet;
-use std::marker::PhantomData;
 use std::path::Path;
 
 use borsh::{BorshDeserialize, BorshSerialize};
+use fjall::{
+    Config, PartitionCreateOptions, ReadTransaction, Slice, TransactionalKeyspace,
+    TransactionalPartitionHandle, WriteTransaction,
+};
 use sha2::{Digest, Sha256};
 
 use crate::identifier::{ChangeHash, ContentHash, DocumentId};
-use crate::storage::{Database, ReadTransaction, Slice, WriteTransaction};
 
 /// A Solipr repository.
 pub struct Repository {
-    /// The [Database] of the repository.
-    database: Database,
+    /// The keyspace of the repository.
+    ///
+    /// It is the database struct of [fjall].
+    keyspace: TransactionalKeyspace,
+
+    /// The partition used to store plugin key-value store.
+    store: TransactionalPartitionHandle,
+
+    /// The partition used to store changes.
+    changes: TransactionalPartitionHandle,
+
+    /// The partition used to store the dependents changes.
+    dependents: TransactionalPartitionHandle,
 }
 
 impl Repository {
-    /// Opens the [Repository] at the given path.
+    /// Opens the [Repository] at the given folder.
     ///
     /// # Errors
     ///
     /// An error will be returned if the repository could not be opened.
-    pub fn open(path: impl AsRef<Path>) -> anyhow::Result<Self> {
+    pub fn open(folder: impl AsRef<Path>) -> anyhow::Result<Self> {
+        let keyspace = Config::new(folder).open_transactional()?;
         Ok(Self {
-            database: Database::open(path)?,
+            store: keyspace.open_partition("store", PartitionCreateOptions::default())?,
+            changes: keyspace.open_partition("changes", PartitionCreateOptions::default())?,
+            dependents: keyspace.open_partition("dependents", PartitionCreateOptions::default())?,
+            keyspace,
         })
     }
 
     /// Opens a read-only transaction on the [Repository].
-    ///
-    /// # Errors
-    ///
-    /// See [`Database::read_tx`].
-    pub fn read(&self) -> anyhow::Result<ReadRepository> {
-        Ok(ReadRepository {
+    #[must_use]
+    pub fn read(&self) -> ReadRepository {
+        ReadRepository {
             repository: self,
-            transaction: self.database.read_tx()?,
-        })
+            transaction: self.keyspace.read_tx(),
+        }
     }
 
     /// Opens a read-write transaction on the [Repository].
-    ///
-    /// # Errors
-    ///
-    /// See [`Database::write_tx`].
-    pub fn write(&self) -> anyhow::Result<WriteRepository> {
-        Ok(WriteRepository {
+    #[must_use]
+    pub fn write(&self) -> WriteRepository {
+        WriteRepository {
             repository: self,
-            transaction: self.database.write_tx()?,
-        })
+            transaction: self.keyspace.write_tx(),
+        }
     }
 }
 
@@ -58,11 +69,10 @@ impl Repository {
 /// This is the main interface to read data from a [Repository].
 pub struct ReadRepository<'repo> {
     /// The underlying [Repository].
-    #[expect(dead_code, reason = "will be used in the future")]
     repository: &'repo Repository,
 
-    /// The [`ReadTransaction`] being used by this [`ReadRepository`].
-    transaction: ReadTransaction<'repo>,
+    /// The underlying [fjall] transaction.
+    transaction: ReadTransaction,
 }
 
 impl ReadRepository<'_> {
@@ -99,9 +109,12 @@ impl ReadDocument<'_> {
     /// This method should return an error if there is an fatal error that can't
     /// be recovered.
     pub fn store_read(&self, key: impl AsRef<[u8]>) -> anyhow::Result<Option<Slice>> {
-        let mut final_key = format!("store/{}/", self.id).into_bytes();
+        let mut final_key = format!("{}/", self.id).into_bytes();
         final_key.extend_from_slice(key.as_ref());
-        self.repository.transaction.get(final_key)
+        Ok(self
+            .repository
+            .transaction
+            .get(&self.repository.repository.store, final_key)?)
     }
 
     /// Retrieves all keys with the given prefix in the document store.
@@ -114,15 +127,15 @@ impl ReadDocument<'_> {
         &self,
         prefix: impl AsRef<[u8]>,
     ) -> impl Iterator<Item = Result<(Slice, Slice), anyhow::Error>> {
-        let mut final_prefix = format!("store/{}/", self.id).into_bytes();
+        let mut final_prefix = format!("{}/", self.id).into_bytes();
         let base_len = final_prefix.len();
         final_prefix.extend_from_slice(prefix.as_ref());
         self.repository
             .transaction
-            .keys(final_prefix)
+            .prefix(&self.repository.repository.store, final_prefix)
             .map(move |entry| match entry {
-                Ok((key, value)) => Ok((Slice(key.0.slice(base_len..), PhantomData), value)),
-                Err(e) => Err(e),
+                Ok((key, value)) => Ok((key.slice(base_len..), value)),
+                Err(e) => Err(e.into()),
             })
     }
 
@@ -134,11 +147,10 @@ impl ReadDocument<'_> {
     /// This method should return an error if there is an fatal error that can't
     /// be recovered.
     pub fn change(&self, hash: ChangeHash) -> anyhow::Result<Option<Change>> {
-        match self
-            .repository
-            .transaction
-            .get(format!("changes/{}/{hash}", self.id))?
-        {
+        match self.repository.transaction.get(
+            &self.repository.repository.changes,
+            format!("{}/{hash}", self.id),
+        )? {
             Some(value) => Ok(Some(borsh::from_slice(&value)?)),
             None => Ok(None),
         }
@@ -152,11 +164,10 @@ impl ReadDocument<'_> {
     /// This method should return an error if there is an fatal error that can't
     /// be recovered.
     pub fn dependents(&self, change_hash: ChangeHash) -> anyhow::Result<HashSet<ChangeHash>> {
-        match self
-            .repository
-            .transaction
-            .get(format!("dependents/{}/{change_hash}", self.id))?
-        {
+        match self.repository.transaction.get(
+            &self.repository.repository.dependents,
+            format!("{}/{change_hash}", self.id),
+        )? {
             Some(value) => Ok(borsh::from_slice(&value)?),
             None => Ok(HashSet::new()),
         }
@@ -168,10 +179,9 @@ impl ReadDocument<'_> {
 /// This is the main interface to write data to a [Repository].
 pub struct WriteRepository<'repo> {
     /// The underlying [Repository].
-    #[expect(dead_code, reason = "will be used in the future")]
     repository: &'repo Repository,
 
-    /// The [`WriteTransaction`] being used by this [`WriteRepository`].
+    /// The underlying [fjall] transaction.
     transaction: WriteTransaction<'repo>,
 }
 
@@ -189,9 +199,9 @@ impl<'repo> WriteRepository<'repo> {
     ///
     /// # Errors
     ///
-    /// See [`WriteTransaction::commit`].
+    /// If there is an error during committing, it will be returned.
     pub fn commit(self) -> anyhow::Result<()> {
-        self.transaction.commit()
+        Ok(self.transaction.commit()?)
     }
 }
 
@@ -218,9 +228,12 @@ impl WriteDocument<'_> {
     /// This method should return an error if there is an fatal error that can't
     /// be recovered.
     pub fn store_read(&self, key: impl AsRef<[u8]>) -> anyhow::Result<Option<Slice>> {
-        let mut final_key = format!("store/{}/", self.id).into_bytes();
+        let mut final_key = format!("{}/", self.id).into_bytes();
         final_key.extend_from_slice(key.as_ref());
-        self.repository.transaction.get(final_key)
+        Ok(self
+            .repository
+            .transaction
+            .get(&self.repository.repository.store, final_key)?)
     }
 
     /// Retrieves all keys with the given prefix in the document store.
@@ -233,15 +246,15 @@ impl WriteDocument<'_> {
         &self,
         prefix: impl AsRef<[u8]>,
     ) -> impl Iterator<Item = Result<(Slice, Slice), anyhow::Error>> {
-        let mut final_prefix = format!("store/{}/", self.id).into_bytes();
+        let mut final_prefix = format!("{}/", self.id).into_bytes();
         let base_len = final_prefix.len();
         final_prefix.extend_from_slice(prefix.as_ref());
         self.repository
             .transaction
-            .keys(final_prefix)
+            .prefix(&self.repository.repository.store, final_prefix)
             .map(move |entry| match entry {
-                Ok((key, value)) => Ok((Slice(key.0.slice(base_len..), PhantomData), value)),
-                Err(e) => Err(e),
+                Ok((key, value)) => Ok((key.slice(base_len..), value)),
+                Err(e) => Err(e.into()),
             })
     }
 
@@ -253,11 +266,10 @@ impl WriteDocument<'_> {
     /// This method should return an error if there is an fatal error that can't
     /// be recovered.
     pub fn change(&self, hash: ChangeHash) -> anyhow::Result<Option<Change>> {
-        match self
-            .repository
-            .transaction
-            .get(format!("changes/{}/{hash}", self.id))?
-        {
+        match self.repository.transaction.get(
+            &self.repository.repository.changes,
+            format!("{}/{hash}", self.id),
+        )? {
             Some(value) => Ok(Some(borsh::from_slice(&value)?)),
             None => Ok(None),
         }
@@ -271,11 +283,10 @@ impl WriteDocument<'_> {
     /// This method should return an error if there is an fatal error that can't
     /// be recovered.
     pub fn dependents(&self, change_hash: ChangeHash) -> anyhow::Result<HashSet<ChangeHash>> {
-        match self
-            .repository
-            .transaction
-            .get(format!("dependents/{}/{change_hash}", self.id))?
-        {
+        match self.repository.transaction.get(
+            &self.repository.repository.dependents,
+            format!("{}/{change_hash}", self.id),
+        )? {
             Some(value) => Ok(borsh::from_slice(&value)?),
             None => Ok(HashSet::new()),
         }
@@ -313,21 +324,28 @@ impl WriteDocument<'_> {
         // Add the change to the database.
         let change_hash = change.hash();
         self.repository.transaction.insert(
-            format!("changes/{}/{change_hash}", self.id),
+            &self.repository.repository.changes,
+            format!("{}/{change_hash}", self.id),
             borsh::to_vec(&change)?,
-        )?;
+        );
 
         // Update dependents.
         for dependency in &change.dependencies {
-            let dependents_key = format!("dependents/{}/{dependency}", self.id);
-            let mut dependents = match self.repository.transaction.get(&dependents_key)? {
+            let dependents_key = format!("{}/{dependency}", self.id);
+            let mut dependents = match self
+                .repository
+                .transaction
+                .get(&self.repository.repository.dependents, &dependents_key)?
+            {
                 Some(value) => borsh::from_slice(&value)?,
                 None => HashSet::new(),
             };
             dependents.insert(change_hash);
-            self.repository
-                .transaction
-                .insert(&dependents_key, borsh::to_vec(&dependents)?)?;
+            self.repository.transaction.insert(
+                &self.repository.repository.dependents,
+                &dependents_key,
+                borsh::to_vec(&dependents)?,
+            );
         }
 
         // Returns success.
@@ -360,8 +378,12 @@ impl WriteDocument<'_> {
         };
 
         // Check dependents changes.
-        let dependents_key = format!("dependents/{}/{change_hash}", self.id);
-        let dependents = match self.repository.transaction.get(&dependents_key)? {
+        let dependents_key = format!("{}/{change_hash}", self.id);
+        let dependents = match self
+            .repository
+            .transaction
+            .get(&self.repository.repository.dependents, &dependents_key)?
+        {
             Some(value) => borsh::from_slice(&value)?,
             None => HashSet::new(),
         };
@@ -370,25 +392,33 @@ impl WriteDocument<'_> {
         }
 
         // Remove the change from the database.
-        self.repository
-            .transaction
-            .remove(format!("changes/{}/{change_hash}", self.id))?;
+        self.repository.transaction.remove(
+            &self.repository.repository.changes,
+            format!("{}/{change_hash}", self.id),
+        );
 
         // Update dependents changes.
         for dependency in change.dependencies {
-            let dependents_key = format!("dependents/{}/{dependency}", self.id);
-            let mut dependents: HashSet<ChangeHash> =
-                match self.repository.transaction.get(&dependents_key)? {
-                    Some(value) => borsh::from_slice(&value)?,
-                    None => HashSet::new(),
-                };
+            let dependents_key = format!("{}/{dependency}", self.id);
+            let mut dependents: HashSet<ChangeHash> = match self
+                .repository
+                .transaction
+                .get(&self.repository.repository.dependents, &dependents_key)?
+            {
+                Some(value) => borsh::from_slice(&value)?,
+                None => HashSet::new(),
+            };
             dependents.remove(&change_hash);
             if dependents.is_empty() {
-                self.repository.transaction.remove(&dependents_key)?;
-            } else {
                 self.repository
                     .transaction
-                    .insert(&dependents_key, borsh::to_vec(&dependents)?)?;
+                    .remove(&self.repository.repository.dependents, &dependents_key);
+            } else {
+                self.repository.transaction.insert(
+                    &self.repository.repository.dependents,
+                    &dependents_key,
+                    borsh::to_vec(&dependents)?,
+                );
             }
         }
 
