@@ -71,17 +71,31 @@ impl FromStr for RepositoryId {
 /// The identifier of a document in a
 /// [Repository](crate::repository::Repository).
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, BorshDeserialize, BorshSerialize)]
-pub struct DocumentId(Uuid);
+pub struct DocumentId(ContentHash, Uuid);
+
+impl DocumentId {
+    /// Returns the [`ContentHash`] of the plugin that created the document.
+    #[must_use]
+    pub const fn plugin_hash(&self) -> ContentHash {
+        self.0
+    }
+}
 
 impl Debug for DocumentId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "D{}", bs58::encode(self.0.as_bytes()).into_string())
+        let mut bytes = [0; 48];
+        bytes.copy_from_slice(self.0.as_bytes());
+        bytes[32..48].copy_from_slice(self.1.as_bytes());
+        write!(f, "D{}", bs58::encode(bytes).into_string())
     }
 }
 
 impl Display for DocumentId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "D{}", bs58::encode(self.0.as_bytes()).into_string())
+        let mut bytes = [0; 48];
+        bytes.copy_from_slice(self.0.as_bytes());
+        bytes[32..48].copy_from_slice(self.1.as_bytes());
+        write!(f, "D{}", bs58::encode(bytes).into_string())
     }
 }
 
@@ -90,9 +104,11 @@ impl FromStr for DocumentId {
 
     fn from_str(mut value: &str) -> Result<Self, Self::Err> {
         value = value.trim().strip_prefix("D").context("missing prefix")?;
-        Ok(Self(Uuid::from_bytes(
-            bs58::decode(value.as_bytes()).into_array_const()?,
-        )))
+        let bytes: [u8; 48] = bs58::decode(value.as_bytes()).into_array_const()?;
+        Ok(Self(
+            ContentHash(bytes[0..32].try_into()?),
+            Uuid::from_bytes(bytes[32..48].try_into()?),
+        ))
     }
 }
 

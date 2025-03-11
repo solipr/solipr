@@ -55,12 +55,15 @@ impl Repository {
     }
 
     /// Opens a read-write transaction on the [Repository].
-    #[must_use]
-    pub fn write(&self) -> WriteRepository {
-        WriteRepository {
+    ///
+    /// # Errors
+    ///
+    /// If the transaction cannot be created an error is returned.
+    pub fn write(&self) -> anyhow::Result<WriteRepository> {
+        Ok(WriteRepository {
             repository: self,
-            transaction: self.keyspace.write_tx(),
-        }
+            transaction: self.keyspace.write_tx()?,
+        })
     }
 }
 
@@ -182,7 +185,7 @@ pub struct WriteRepository<'repo> {
     repository: &'repo Repository,
 
     /// The underlying [fjall] transaction.
-    transaction: WriteTransaction<'repo>,
+    transaction: WriteTransaction,
 }
 
 impl<'repo> WriteRepository<'repo> {
@@ -199,9 +202,16 @@ impl<'repo> WriteRepository<'repo> {
     ///
     /// # Errors
     ///
-    /// If there is an error during committing, it will be returned.
-    pub fn commit(self) -> anyhow::Result<()> {
-        Ok(self.transaction.commit()?)
+    /// If there is an error during committing, it will be returned as an
+    /// [anyhow] error.
+    ///
+    /// If there is a conflict when committing, an error varian will be
+    /// returned inside an `Ok` variant.
+    pub fn commit(self) -> anyhow::Result<Result<(), ()>> {
+        match self.transaction.commit()? {
+            Ok(()) => Ok(Ok(())),
+            Err(_) => Ok(Err(())),
+        }
     }
 }
 
@@ -227,7 +237,7 @@ impl WriteDocument<'_> {
     ///
     /// This method should return an error if there is an fatal error that can't
     /// be recovered.
-    pub fn store_read(&self, key: impl AsRef<[u8]>) -> anyhow::Result<Option<Slice>> {
+    pub fn store_read(&mut self, key: impl AsRef<[u8]>) -> anyhow::Result<Option<Slice>> {
         let mut final_key = format!("{}/", self.id).into_bytes();
         final_key.extend_from_slice(key.as_ref());
         Ok(self
@@ -236,14 +246,15 @@ impl WriteDocument<'_> {
             .get(&self.repository.repository.store, final_key)?)
     }
 
-    /// Retrieves all keys with the given prefix in the document store.
+    /// Retrieves all keys (and their values) with the given prefix in the
+    /// document store.
     ///
     /// # Errors
     ///
     /// This method should return an error if there is an fatal error that can't
     /// be recovered.
     pub fn store_keys(
-        &self,
+        &mut self,
         prefix: impl AsRef<[u8]>,
     ) -> impl Iterator<Item = Result<(Slice, Slice), anyhow::Error>> {
         let mut final_prefix = format!("{}/", self.id).into_bytes();
@@ -258,6 +269,33 @@ impl WriteDocument<'_> {
             })
     }
 
+    /// Writes a value to the document store.
+    ///
+    /// # Errors
+    ///
+    /// This method should return an error if there is an fatal error that can't
+    /// be recovered.
+    pub fn store_write(
+        &mut self,
+        key: impl AsRef<[u8]>,
+        value: Option<impl AsRef<[u8]>>,
+    ) -> anyhow::Result<()> {
+        let mut final_key = format!("{}/", self.id).into_bytes();
+        final_key.extend_from_slice(key.as_ref());
+        if let Some(value) = value {
+            self.repository.transaction.insert(
+                &self.repository.repository.store,
+                final_key,
+                value.as_ref(),
+            );
+        } else {
+            self.repository
+                .transaction
+                .remove(&self.repository.repository.store, final_key);
+        }
+        Ok(())
+    }
+
     /// Returns the [Change] with the given [`ChangeHash`] applied to this
     /// document.
     ///
@@ -265,7 +303,7 @@ impl WriteDocument<'_> {
     ///
     /// This method should return an error if there is an fatal error that can't
     /// be recovered.
-    pub fn change(&self, hash: ChangeHash) -> anyhow::Result<Option<Change>> {
+    pub fn change(&mut self, hash: ChangeHash) -> anyhow::Result<Option<Change>> {
         match self.repository.transaction.get(
             &self.repository.repository.changes,
             format!("{}/{hash}", self.id),
@@ -282,7 +320,7 @@ impl WriteDocument<'_> {
     ///
     /// This method should return an error if there is an fatal error that can't
     /// be recovered.
-    pub fn dependents(&self, change_hash: ChangeHash) -> anyhow::Result<HashSet<ChangeHash>> {
+    pub fn dependents(&mut self, change_hash: ChangeHash) -> anyhow::Result<HashSet<ChangeHash>> {
         match self.repository.transaction.get(
             &self.repository.repository.dependents,
             format!("{}/{change_hash}", self.id),
