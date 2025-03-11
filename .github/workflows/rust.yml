@@ -18,15 +18,18 @@ jobs:
 
     - name: Install nightly
       run: rustup install nightly --profile minimal
-    
+
+    - name: Install Wasm Target
+      run: rustup target add wasm32-unknown-unknown
+
     - name: Install nightly rustfmt
       run: rustup component add rustfmt --toolchain nightly
 
     - name: Check fmt
       run: cargo +nightly fmt --check
-  
+
     - name: Clippy checks
       run: cargo clippy -- -D warnings
-      
+
     - name: Run tests
       run: cargo test
