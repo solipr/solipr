@@ -249,6 +249,8 @@ world document-plugin {
 
     /// Apply a change to the document, updating its state accordingly.
     ///
+    /// The change is inserted into the document before this function is called.
+    ///
     /// # Arguments
     ///
     /// * `registry` - A read-only interface to the global registry.
@@ -265,6 +267,8 @@ world document-plugin {
     );
 
     /// Reverts a change that was previously applied to the document, restoring its previous state.
+    ///
+    /// The change is removed from the document before this function is called.
     ///
     /// # Arguments
     ///
