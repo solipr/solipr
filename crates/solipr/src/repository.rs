@@ -281,24 +281,23 @@ impl WriteDocument<'_> {
         }
     }
 
-    /// Apply a [Change] to the document.
+    /// Insert a [Change] into the document.
     ///
-    /// If the [Change] is already applied, this function does nothing.
+    /// If the [Change] is already in the document, this function does nothing.
     ///
     /// # Note
     ///
     /// This method does not call the plugin hooks. It is up to the caller to
-    /// call it before calling this function.
+    /// call it after calling this function.
     ///
     /// # Errors
     ///
     /// If there is a fatal error that can't be recovered, this method should
     /// return an [anyhow] error.
     ///
-    /// If the [Change] can't be applied because
-    /// some of its dependencies are not applied, this method returns an error
-    /// with a set of the [`ChangeHash`] of the dependencies that need to be
-    /// applied first.
+    /// If the [Change] can't be applied because some of its dependencies are
+    /// not applied, this method returns an error with a set of the
+    /// [`ChangeHash`] of the dependencies that need to be applied first.
     pub fn apply(&mut self, change: &Change) -> anyhow::Result<Result<(), HashSet<ChangeHash>>> {
         // Check if all dependencies are already applied.
         let mut needed_dependencies = HashSet::new();
@@ -335,14 +334,14 @@ impl WriteDocument<'_> {
         Ok(Ok(()))
     }
 
-    /// Unapply a [Change] from the document.
+    /// Remove a [Change] from the document.
     ///
-    /// If the [Change] is not applied, this function does nothing.
+    /// If the [Change] is not in the document, this function does nothing.
     ///
     /// # Note
     ///
     /// This method does not call the plugin hooks. It is up to the caller to
-    /// call it before calling this function.
+    /// call it after calling this function.
     ///
     /// # Errors
     ///
