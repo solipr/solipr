@@ -71,7 +71,7 @@ impl FromStr for RepositoryId {
 /// The identifier of a document in a
 /// [Repository](crate::repository::Repository).
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, BorshDeserialize, BorshSerialize)]
-pub struct DocumentId(ContentHash, Uuid);
+pub struct DocumentId(pub(crate) ContentHash, pub(crate) Uuid);
 
 impl DocumentId {
     /// Returns the [`ContentHash`] of the plugin that created the document.
