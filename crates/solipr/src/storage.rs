@@ -9,6 +9,7 @@ use uuid::Uuid;
 
 use crate::identifier::ContentHash;
 
+#[derive(Clone)]
 /// A registry that can be used to store and retrieve byte arrays of any length.
 pub struct Registry {
     /// The path to the folder where the contents are stored.
