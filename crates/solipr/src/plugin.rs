@@ -1,6 +1,6 @@
 //! The plugin interface for document plugin in Solipr.
 
-use std::collections::HashSet;
+use std::collections::{BTreeSet, HashSet};
 use std::io::{Read, Seek, SeekFrom};
 use std::mem;
 use std::ops::{Deref, DerefMut};
@@ -46,22 +46,22 @@ pub enum RenderBlock {
 }
 
 /// A read-only document that can use the document plugin.
-pub struct PluginReadDocument<'tx> {
+pub struct PluginReadDocument {
     /// The store used to run the document plugin.
-    store: Store<ReadHost<'tx>>,
+    store: Store<ReadHost>,
 
     /// The instance of the document plugin.
     instance: DocumentPlugin,
 }
 
-impl<'tx> PluginReadDocument<'tx> {
+impl PluginReadDocument {
     /// Load the plugin for an existing [`ReadDocument`].
     ///
     /// # Errors
     ///
     /// If the plugin is not stored in the registry or if the plugin is
     /// malformed this function will return an error.
-    pub fn new(registry: Registry, document: ReadDocument<'tx>) -> anyhow::Result<Self> {
+    pub fn new(registry: Registry, document: ReadDocument) -> anyhow::Result<Self> {
         let mut plugin_bytes = Vec::with_capacity(
             registry
                 .size(document.id().plugin_hash())?
@@ -74,7 +74,7 @@ impl<'tx> PluginReadDocument<'tx> {
             .read_to_end(&mut plugin_bytes)?;
         let component = Component::from_binary(&ENGINE, &plugin_bytes)?;
         let mut linker = Linker::new(&ENGINE);
-        DocumentPlugin::add_to_linker(&mut linker, |state: &mut ReadHost<'tx>| state)?;
+        DocumentPlugin::add_to_linker(&mut linker, |state: &mut ReadHost| state)?;
         let mut store = Store::new(
             &ENGINE,
             ReadHost {
@@ -141,8 +141,8 @@ impl<'tx> PluginReadDocument<'tx> {
     }
 }
 
-impl<'tx> Deref for PluginReadDocument<'tx> {
-    type Target = ReadDocument<'tx>;
+impl Deref for PluginReadDocument {
+    type Target = ReadDocument;
 
     fn deref(&self) -> &Self::Target {
         &self.store.data().document
@@ -151,18 +151,18 @@ impl<'tx> Deref for PluginReadDocument<'tx> {
 
 /// The data stored by the host to interact with a plugin with a read-only
 /// access to the document.
-struct ReadHost<'tx> {
+struct ReadHost {
     /// The registry used.
     registry: Registry,
 
     /// The read-only document used.
-    document: ReadDocument<'tx>,
+    document: ReadDocument,
 
     /// A buffer to store block that are rendered.
     rendered_blocks: Vec<RenderBlock>,
 }
 
-impl HostReadKvStore for ReadHost<'_> {
+impl HostReadKvStore for ReadHost {
     fn read(
         &mut self,
         _: Resource<ReadKvStore>,
@@ -170,7 +170,7 @@ impl HostReadKvStore for ReadHost<'_> {
     ) -> wasmtime::Result<Option<Vec<u8>>> {
         self.document
             .store_read(key)?
-            .map_or_else(|| Ok(None), |value| Ok(Some(value.to_vec())))
+            .map_or_else(|| Ok(None), |value| Ok(Some(value.value().to_vec())))
     }
 
     fn keys(
@@ -179,8 +179,7 @@ impl HostReadKvStore for ReadHost<'_> {
         prefix: Vec<u8>,
     ) -> wasmtime::Result<Vec<(Vec<u8>, Vec<u8>)>> {
         self.document
-            .store_keys(prefix)
-            .map(|entry| entry.map(|(key, value)| (key.to_vec(), value.to_vec())))
+            .store_keys(prefix)?
             .collect::<Result<Vec<_>, _>>()
     }
 
@@ -189,7 +188,7 @@ impl HostReadKvStore for ReadHost<'_> {
     }
 }
 
-impl HostWriteKvStore for ReadHost<'_> {
+impl HostWriteKvStore for ReadHost {
     fn read(
         &mut self,
         _: Resource<WriteKvStore>,
@@ -220,7 +219,7 @@ impl HostWriteKvStore for ReadHost<'_> {
     }
 }
 
-impl HostReadRegistry for ReadHost<'_> {
+impl HostReadRegistry for ReadHost {
     fn read(
         &mut self,
         _: Resource<ReadRegistry>,
@@ -256,7 +255,7 @@ impl HostReadRegistry for ReadHost<'_> {
     }
 }
 
-impl HostWriteRegistry for ReadHost<'_> {
+impl HostWriteRegistry for ReadHost {
     fn read(
         &mut self,
         _: Resource<WriteRegistry>,
@@ -314,7 +313,7 @@ impl HostWriteRegistry for ReadHost<'_> {
     }
 }
 
-impl HostDocument for ReadHost<'_> {
+impl HostDocument for ReadHost {
     fn get_change(
         &mut self,
         _: Resource<Document>,
@@ -356,7 +355,7 @@ impl HostDocument for ReadHost<'_> {
     }
 }
 
-impl HostRenderer for ReadHost<'_> {
+impl HostRenderer for ReadHost {
     fn render_bytes(&mut self, _: Resource<Renderer>, bytes: Vec<u8>) -> wasmtime::Result<()> {
         self.rendered_blocks.push(RenderBlock::Bytes(bytes));
         Ok(())
@@ -377,7 +376,7 @@ impl HostRenderer for ReadHost<'_> {
     }
 }
 
-impl DocumentPluginImports for ReadHost<'_> {}
+impl DocumentPluginImports for ReadHost {}
 
 /// A read-write document that can use the document plugin.
 pub struct PluginWriteDocument<'tx> {
@@ -523,7 +522,7 @@ impl<'tx> PluginWriteDocument<'tx> {
     pub fn unapply(
         &mut self,
         change_hash: ChangeHash,
-    ) -> anyhow::Result<Result<(), HashSet<ChangeHash>>> {
+    ) -> anyhow::Result<Result<(), BTreeSet<ChangeHash>>> {
         if let Err(dependents) = WriteDocument::unapply(&mut *self, change_hash)? {
             return Ok(Err(dependents));
         }
@@ -573,7 +572,7 @@ impl HostReadKvStore for WriteHost<'_> {
     ) -> wasmtime::Result<Option<Vec<u8>>> {
         self.document
             .store_read(key)?
-            .map_or_else(|| Ok(None), |value| Ok(Some(value.to_vec())))
+            .map_or_else(|| Ok(None), |value| Ok(Some(value.value().to_vec())))
     }
 
     fn keys(
@@ -582,8 +581,7 @@ impl HostReadKvStore for WriteHost<'_> {
         prefix: Vec<u8>,
     ) -> wasmtime::Result<Vec<(Vec<u8>, Vec<u8>)>> {
         self.document
-            .store_keys(prefix)
-            .map(|entry| entry.map(|(key, value)| (key.to_vec(), value.to_vec())))
+            .store_keys(prefix)?
             .collect::<Result<Vec<_>, _>>()
     }
 
@@ -600,7 +598,7 @@ impl HostWriteKvStore for WriteHost<'_> {
     ) -> wasmtime::Result<Option<Vec<u8>>> {
         self.document
             .store_read(key)?
-            .map_or_else(|| Ok(None), |value| Ok(Some(value.to_vec())))
+            .map_or_else(|| Ok(None), |value| Ok(Some(value.value().to_vec())))
     }
 
     fn keys(
@@ -609,8 +607,7 @@ impl HostWriteKvStore for WriteHost<'_> {
         prefix: Vec<u8>,
     ) -> wasmtime::Result<Vec<(Vec<u8>, Vec<u8>)>> {
         self.document
-            .store_keys(prefix)
-            .map(|entry| entry.map(|(key, value)| (key.to_vec(), value.to_vec())))
+            .store_keys(prefix)?
             .collect::<Result<Vec<_>, _>>()
     }
 
