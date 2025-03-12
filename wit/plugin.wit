@@ -276,10 +276,12 @@ world document-plugin {
     /// * `document` - The document to unapply the change for.
     /// * `store` - A writable interface to the key-value store.
     /// * `change-hash` - The change hash of the change to revert.
+    /// * `change` - The change to revert.
     export unapply-change: func(
         registry: borrow<read-registry>,
         document: borrow<document>,
         store: borrow<write-kv-store>,
         change-hash: string,
+        change: change,
     );
 }

@@ -64,12 +64,12 @@ impl PluginReadDocument {
     pub fn new(registry: Registry, document: ReadDocument) -> anyhow::Result<Self> {
         let mut plugin_bytes = Vec::with_capacity(
             registry
-                .size(document.id().plugin_hash())?
+                .size(document.id().plugin_hash().into())?
                 .context("plugin not in registry")?
                 .try_into()?,
         );
         registry
-            .read(document.id().plugin_hash())?
+            .read(document.id().plugin_hash().into())?
             .context("plugin not in registry")?
             .read_to_end(&mut plugin_bytes)?;
         let component = Component::from_binary(&ENGINE, &plugin_bytes)?;
@@ -397,12 +397,12 @@ impl<'tx> PluginWriteDocument<'tx> {
     pub fn new(registry: Registry, document: WriteDocument<'tx>) -> anyhow::Result<Self> {
         let mut plugin_bytes = Vec::with_capacity(
             registry
-                .size(document.id().plugin_hash())?
+                .size(document.id().plugin_hash().into())?
                 .context("plugin not in registry")?
                 .try_into()?,
         );
         registry
-            .read(document.id().plugin_hash())?
+            .read(document.id().plugin_hash().into())?
             .context("plugin not in registry")?
             .read_to_end(&mut plugin_bytes)?;
         let component = Component::from_binary(&ENGINE, &plugin_bytes)?;
@@ -523,15 +523,32 @@ impl<'tx> PluginWriteDocument<'tx> {
         &mut self,
         change_hash: ChangeHash,
     ) -> anyhow::Result<Result<(), BTreeSet<ChangeHash>>> {
-        if let Err(dependents) = WriteDocument::unapply(&mut *self, change_hash)? {
-            return Ok(Err(dependents));
-        }
+        let change = match WriteDocument::unapply(&mut *self, change_hash)? {
+            Ok(change) => change,
+            Err(dependents) => return Ok(Err(dependents)),
+        };
+        let Some(change) = change else {
+            return Ok(Ok(()));
+        };
         self.instance.call_unapply_change(
             &mut self.store,
             Resource::new_borrow(0),
             Resource::new_borrow(0),
             Resource::new_borrow(0),
             &change_hash.to_string(),
+            &inner::Change {
+                dependencies: change
+                    .dependencies
+                    .iter()
+                    .map(ToString::to_string)
+                    .collect(),
+                used_contents: change
+                    .used_contents
+                    .iter()
+                    .map(ToString::to_string)
+                    .collect(),
+                plugin_data: change.plugin_data,
+            },
         )?;
         Ok(Ok(()))
     }

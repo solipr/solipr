@@ -13,7 +13,7 @@ use redb::{
 use sha2::{Digest, Sha256};
 use uuid::Uuid;
 
-use crate::identifier::{ChangeHash, ContentHash, DocumentId};
+use crate::identifier::{ChangeHash, ContentHash, DocumentId, PluginHash};
 
 /// The definition of the table used to store the plugin data of documents.
 static STORE_TABLE: TableDefinition<(DocumentId, &[u8]), &[u8]> = TableDefinition::new("store");
@@ -43,9 +43,13 @@ impl Repository {
     ///
     /// An error will be returned if the repository could not be opened.
     pub fn open(file: impl AsRef<Path>) -> anyhow::Result<Self> {
-        Ok(Self {
-            database: Database::create(file)?,
-        })
+        let database = Database::create(file)?;
+        let tx = database.begin_write()?;
+        tx.open_table(STORE_TABLE)?;
+        tx.open_table(CHANGES_TABLE)?;
+        tx.open_multimap_table(DEPENDENTS_TABLE)?;
+        tx.commit()?;
+        Ok(Self { database })
     }
 
     /// Opens a read-only transaction on the [Repository].
@@ -413,10 +417,10 @@ impl WriteDocument<'_> {
     pub fn unapply(
         &mut self,
         change_hash: ChangeHash,
-    ) -> anyhow::Result<Result<(), BTreeSet<ChangeHash>>> {
+    ) -> anyhow::Result<Result<Option<Change>, BTreeSet<ChangeHash>>> {
         // Get the change from the database.
         let Some(change) = self.change(change_hash)? else {
-            return Ok(Ok(()));
+            return Ok(Ok(None));
         };
 
         // Check dependents changes.
@@ -429,12 +433,13 @@ impl WriteDocument<'_> {
         self.changes.remove((self.id, change_hash))?;
 
         // Update dependents changes.
-        for dependency in change.dependencies {
-            self.dependents.remove((self.id, dependency), change_hash)?;
+        for dependency in &change.dependencies {
+            self.dependents
+                .remove((self.id, *dependency), change_hash)?;
         }
 
         // Return success.
-        Ok(Ok(()))
+        Ok(Ok(Some(change)))
     }
 }
 
@@ -566,7 +571,7 @@ impl Value for DocumentId {
         #[expect(clippy::unwrap_used, reason = "can't do anything else with redb")]
         #[expect(clippy::indexing_slicing, reason = "there is already unwrap, so...")]
         Self(
-            ContentHash(data[0..32].try_into().unwrap()),
+            PluginHash(data[0..32].try_into().unwrap()),
             Uuid::from_bytes(data[32..48].try_into().unwrap()),
         )
     }

@@ -128,10 +128,8 @@ impl Guest for Plugin {
         document: &Document,
         store: &WriteKvStore,
         change_hash: String,
+        change: Change,
     ) {
-        let Some(change) = document.get_change(&change_hash) else {
-            unreachable!()
-        };
         store.write(change_hash.as_bytes(), None);
         for dependency in change.dependencies {
             if document.dependent_changes(&dependency).is_empty() {
