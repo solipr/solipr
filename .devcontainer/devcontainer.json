@@ -3,7 +3,7 @@
 	"image": "mcr.microsoft.com/devcontainers/rust:1-1-bullseye",
 	"postCreateCommand": {
 		"install-nightly": "rustup install nightly --profile complete",
-		"install-wasm": "rustup target add wasm32-unknown-unknown"
+		"install-wasm": "rustup target add wasm32-wasip2"
 	},
 	"customizations": {
 		"vscode": {

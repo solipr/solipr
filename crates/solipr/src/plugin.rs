@@ -16,6 +16,7 @@ use inner::{
 };
 use wasmtime::component::{Component, Linker, Resource};
 use wasmtime::{Engine, Store};
+use wasmtime_wasi::{IoView, ResourceTable, WasiCtx, WasiCtxBuilder, WasiView};
 
 use crate::identifier::{ChangeHash, ContentHash};
 use crate::repository::{Change, ReadDocument, WriteDocument};
@@ -75,12 +76,15 @@ impl PluginReadDocument {
         let component = Component::from_binary(&ENGINE, &plugin_bytes)?;
         let mut linker = Linker::new(&ENGINE);
         DocumentPlugin::add_to_linker(&mut linker, |state: &mut ReadHost| state)?;
+        wasmtime_wasi::add_to_linker_sync(&mut linker)?;
         let mut store = Store::new(
             &ENGINE,
             ReadHost {
                 registry,
                 document,
                 rendered_blocks: Vec::new(),
+                table: ResourceTable::new(),
+                wasi: WasiCtxBuilder::new().inherit_stdout().build(),
             },
         );
         let instance = DocumentPlugin::instantiate(&mut store, &component, &linker)?;
@@ -160,6 +164,24 @@ struct ReadHost {
 
     /// A buffer to store block that are rendered.
     rendered_blocks: Vec<RenderBlock>,
+
+    /// The resource table used by the wasi interface.
+    table: ResourceTable,
+
+    /// The context of the wasi interface.
+    wasi: WasiCtx,
+}
+
+impl IoView for ReadHost {
+    fn table(&mut self) -> &mut ResourceTable {
+        &mut self.table
+    }
+}
+
+impl WasiView for ReadHost {
+    fn ctx(&mut self) -> &mut WasiCtx {
+        &mut self.wasi
+    }
 }
 
 impl HostReadKvStore for ReadHost {
@@ -408,12 +430,15 @@ impl<'tx> PluginWriteDocument<'tx> {
         let component = Component::from_binary(&ENGINE, &plugin_bytes)?;
         let mut linker = Linker::new(&ENGINE);
         DocumentPlugin::add_to_linker(&mut linker, |state: &mut WriteHost<'tx>| state)?;
+        wasmtime_wasi::add_to_linker_sync(&mut linker)?;
         let mut store = Store::new(
             &ENGINE,
             WriteHost {
                 registry,
                 document,
                 rendered_blocks: Vec::new(),
+                table: ResourceTable::new(),
+                wasi: WasiCtxBuilder::new().inherit_stdout().build(),
             },
         );
         let instance = DocumentPlugin::instantiate(&mut store, &component, &linker)?;
@@ -579,6 +604,24 @@ struct WriteHost<'tx> {
 
     /// A buffer to store block that are rendered.
     rendered_blocks: Vec<RenderBlock>,
+
+    /// The resource table used by the wasi interface.
+    table: ResourceTable,
+
+    /// The context of the wasi interface.
+    wasi: WasiCtx,
+}
+
+impl IoView for WriteHost<'_> {
+    fn table(&mut self) -> &mut ResourceTable {
+        &mut self.table
+    }
+}
+
+impl WasiView for WriteHost<'_> {
+    fn ctx(&mut self) -> &mut WasiCtx {
+        &mut self.wasi
+    }
 }
 
 impl HostReadKvStore for WriteHost<'_> {
