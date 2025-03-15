@@ -30,14 +30,14 @@ static DEPENDENTS_TABLE: MultimapTableDefinition<(DocumentId, ChangeHash), Chang
 /// [`ReadDocument::store_keys`] and [`WriteDocument::store_keys`] function.
 type KeysIteratorItem = Result<(Vec<u8>, Vec<u8>), anyhow::Error>;
 
-/// A Solipr repository.
-pub struct Repository {
+/// A Solipr raw repository that interacts directly with a repository database.
+pub struct RawRepository {
     /// The underlying [redb] database used to store data.
     database: Database,
 }
 
-impl Repository {
-    /// Open the given file as a [Repository].
+impl RawRepository {
+    /// Open the given database file as a [`RawRepository`].
     ///
     /// # Errors
     ///
@@ -52,49 +52,49 @@ impl Repository {
         Ok(Self { database })
     }
 
-    /// Opens a read-only transaction on the [Repository].
+    /// Opens a read-only transaction on the [`RawRepository`].
     ///
     /// # Errors
     ///
     /// An error will be returned if the transaction could not be opened.
-    pub fn read(&self) -> anyhow::Result<ReadRepository> {
-        Ok(ReadRepository {
+    pub fn read(&self) -> anyhow::Result<RawReadRepository> {
+        Ok(RawReadRepository {
             tx: self.database.begin_read()?,
         })
     }
 
-    /// Opens a read-write transaction on the [Repository].
+    /// Opens a read-write transaction on the [`RawRepository`].
     ///
     /// # Errors
     ///
     /// An error will be returned if the transaction could not be opened.
-    pub fn write(&self) -> anyhow::Result<WriteRepository> {
-        Ok(WriteRepository {
+    pub fn write(&self) -> anyhow::Result<RawWriteRepository> {
+        Ok(RawWriteRepository {
             tx: self.database.begin_write()?,
         })
     }
 }
 
-/// A read-only transaction on a [Repository].
+/// A read-only transaction on a [`RawRepository`].
 ///
-/// This is the main interface to read data from a [Repository].
-pub struct ReadRepository {
+/// This is the main interface to read data from a [`RawRepository`].
+pub struct RawReadRepository {
     /// The underlying [redb] transaction.
     tx: ReadTransaction,
 }
 
-impl ReadRepository {
-    /// Opens a document from this [`ReadRepository`].
+impl RawReadRepository {
+    /// Opens a document from this [`RawReadRepository`].
     ///
     /// # Errors
     ///
     /// An error will be returned if the database is corrupted or if there is an
     /// IO error.
-    pub fn open(&self, id: DocumentId) -> anyhow::Result<ReadDocument> {
+    pub fn open(&self, id: DocumentId) -> anyhow::Result<RawReadDocument> {
         let store = self.tx.open_table(STORE_TABLE)?;
         let changes = self.tx.open_table(CHANGES_TABLE)?;
         let dependents = self.tx.open_multimap_table(DEPENDENTS_TABLE)?;
-        Ok(ReadDocument {
+        Ok(RawReadDocument {
             id,
             store,
             changes,
@@ -103,8 +103,8 @@ impl ReadRepository {
     }
 }
 
-/// A read-only document from a [`ReadRepository`].
-pub struct ReadDocument {
+/// A read-only document from a [`RawReadRepository`].
+pub struct RawReadDocument {
     /// The identifier of the document.
     id: DocumentId,
 
@@ -118,7 +118,7 @@ pub struct ReadDocument {
     dependents: ReadOnlyMultimapTable<(DocumentId, ChangeHash), ChangeHash>,
 }
 
-impl ReadDocument {
+impl RawReadDocument {
     /// Returns the identifier of the document.
     #[must_use]
     pub const fn id(&self) -> DocumentId {
@@ -201,26 +201,26 @@ impl ReadDocument {
     }
 }
 
-/// A read-write transaction on a [Repository].
+/// A read-write transaction on a [`RawRepository`].
 ///
-/// This is the main interface to write data to a [Repository].
-pub struct WriteRepository {
+/// This is the main interface to write data to a [`RawRepository`].
+pub struct RawWriteRepository {
     /// The underlying [fjall] transaction.
     tx: WriteTransaction,
 }
 
-impl WriteRepository {
-    /// Opens a document from this [`WriteRepository`].
+impl RawWriteRepository {
+    /// Opens a document from this [`RawWriteRepository`].
     ///
     /// # Errors
     ///
     /// An error will be returned if the database is corrupted or if there is an
     /// IO error.
-    pub fn open(&self, id: DocumentId) -> anyhow::Result<WriteDocument> {
+    pub fn open(&self, id: DocumentId) -> anyhow::Result<RawWriteDocument> {
         let store = self.tx.open_table(STORE_TABLE)?;
         let changes = self.tx.open_table(CHANGES_TABLE)?;
         let dependents = self.tx.open_multimap_table(DEPENDENTS_TABLE)?;
-        Ok(WriteDocument {
+        Ok(RawWriteDocument {
             id,
             store,
             changes,
@@ -238,8 +238,8 @@ impl WriteRepository {
     }
 }
 
-/// A read-write document from a [`WriteRepository`].
-pub struct WriteDocument<'tx> {
+/// A read-write document from a [`RawWriteRepository`].
+pub struct RawWriteDocument<'tx> {
     /// The identifier of the document.
     id: DocumentId,
 
@@ -253,7 +253,7 @@ pub struct WriteDocument<'tx> {
     dependents: MultimapTable<'tx, (DocumentId, ChangeHash), ChangeHash>,
 }
 
-impl WriteDocument<'_> {
+impl RawWriteDocument<'_> {
     /// Returns the identifier of the document.
     #[must_use]
     pub const fn id(&self) -> DocumentId {
@@ -443,7 +443,7 @@ impl WriteDocument<'_> {
     }
 }
 
-/// A change made to a document in a [Repository].
+/// A change made to a document in a [`RawRepository`].
 #[derive(Debug, BorshDeserialize, BorshSerialize)]
 pub struct Change {
     /// The dependencies of this [Change].

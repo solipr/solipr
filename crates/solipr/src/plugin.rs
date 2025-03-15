@@ -19,7 +19,7 @@ use wasmtime::{Engine, Store};
 use wasmtime_wasi::{IoView, ResourceTable, WasiCtx, WasiCtxBuilder, WasiView};
 
 use crate::identifier::{ChangeHash, ContentHash};
-use crate::repository::{Change, ReadDocument, WriteDocument};
+use crate::repository::{Change, RawReadDocument, RawWriteDocument};
 use crate::storage::Registry;
 
 /// A module to contains the plugin interface for document plugin in Solipr.
@@ -62,7 +62,7 @@ impl PluginReadDocument {
     ///
     /// If the plugin is not stored in the registry or if the plugin is
     /// malformed this function will return an error.
-    pub fn new(registry: Registry, document: ReadDocument) -> anyhow::Result<Self> {
+    pub fn new(registry: Registry, document: RawReadDocument) -> anyhow::Result<Self> {
         let mut plugin_bytes = Vec::with_capacity(
             registry
                 .size(document.id().plugin_hash().into())?
@@ -146,7 +146,7 @@ impl PluginReadDocument {
 }
 
 impl Deref for PluginReadDocument {
-    type Target = ReadDocument;
+    type Target = RawReadDocument;
 
     fn deref(&self) -> &Self::Target {
         &self.store.data().document
@@ -160,7 +160,7 @@ struct ReadHost {
     registry: Registry,
 
     /// The read-only document used.
-    document: ReadDocument,
+    document: RawReadDocument,
 
     /// A buffer to store block that are rendered.
     rendered_blocks: Vec<RenderBlock>,
@@ -416,7 +416,7 @@ impl<'tx> PluginWriteDocument<'tx> {
     ///
     /// If the plugin is not stored in the registry or if the plugin is
     /// malformed this function will return an error.
-    pub fn new(registry: Registry, document: WriteDocument<'tx>) -> anyhow::Result<Self> {
+    pub fn new(registry: Registry, document: RawWriteDocument<'tx>) -> anyhow::Result<Self> {
         let mut plugin_bytes = Vec::with_capacity(
             registry
                 .size(document.id().plugin_hash().into())?
@@ -509,7 +509,7 @@ impl<'tx> PluginWriteDocument<'tx> {
     /// not applied, this method returns an error with a set of the
     /// [`ChangeHash`] of the dependencies that need to be applied first.
     pub fn apply(&mut self, change: &Change) -> anyhow::Result<Result<(), HashSet<ChangeHash>>> {
-        if let Err(needed_dependencies) = WriteDocument::apply(&mut *self, change)? {
+        if let Err(needed_dependencies) = RawWriteDocument::apply(&mut *self, change)? {
             return Ok(Err(needed_dependencies));
         }
         self.instance.call_apply_change(
@@ -548,7 +548,7 @@ impl<'tx> PluginWriteDocument<'tx> {
         &mut self,
         change_hash: ChangeHash,
     ) -> anyhow::Result<Result<(), BTreeSet<ChangeHash>>> {
-        let change = match WriteDocument::unapply(&mut *self, change_hash)? {
+        let change = match RawWriteDocument::unapply(&mut *self, change_hash)? {
             Ok(change) => change,
             Err(dependents) => return Ok(Err(dependents)),
         };
@@ -580,7 +580,7 @@ impl<'tx> PluginWriteDocument<'tx> {
 }
 
 impl<'tx> Deref for PluginWriteDocument<'tx> {
-    type Target = WriteDocument<'tx>;
+    type Target = RawWriteDocument<'tx>;
 
     fn deref(&self) -> &Self::Target {
         &self.store.data().document
@@ -600,7 +600,7 @@ struct WriteHost<'tx> {
     registry: Registry,
 
     /// The read-write document used.
-    document: WriteDocument<'tx>,
+    document: RawWriteDocument<'tx>,
 
     /// A buffer to store block that are rendered.
     rendered_blocks: Vec<RenderBlock>,

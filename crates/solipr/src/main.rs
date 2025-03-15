@@ -8,7 +8,7 @@ use anyhow::{Context, bail};
 use clap::{Parser, Subcommand};
 use solipr::identifier::{ChangeHash, DocumentId, PluginHash};
 use solipr::plugin::{PluginReadDocument, PluginWriteDocument, RenderBlock};
-use solipr::repository::Repository;
+use solipr::repository::RawRepository;
 use solipr::storage::Registry;
 
 /// The CLI arguments for Solipr.
@@ -78,14 +78,14 @@ fn main() -> anyhow::Result<()> {
             }
             fs::create_dir(".solipr")?;
             fs::create_dir(".solipr/registry")?;
-            Repository::open(".solipr/repository")?;
+            RawRepository::open(".solipr/repository")?;
         }
         other => {
             if !fs::exists(".solipr")? {
                 bail!("not in a solipr repository");
             }
             let registry = Registry::open(".solipr/registry");
-            let repository = Repository::open(".solipr/repository")?;
+            let repository = RawRepository::open(".solipr/repository")?;
             match other {
                 Commands::Init => unreachable!(),
                 Commands::Register { path } => {
