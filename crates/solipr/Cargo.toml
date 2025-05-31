@@ -18,7 +18,7 @@ bs58 = "0.5.1"
 wasmtime = "30.0.2"
 redb = "2.4.0"
 clap = { version = "4.5.39", features = ["derive"] }
-wit-component = "0.227.1"
+wit-component = "0.232.0"
 wasmtime-wasi = "30.0.2"
 
 [lints]
