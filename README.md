@@ -1,7 +1,7 @@
 <a id="readme-top"></a>
 <div align="center">
   <p style="color: red; font-weight: bold;">
-    🚧 This project is in early development and is not usable currently. 🚧
+    ⚠️ This project has been abandoned. ⚠️
   </p>
   <a href="https://solipr.net">
     <img src="logo/logo.svg" alt="Logo" width="300">
@@ -12,11 +12,13 @@
 
 ---
 
-## Introduction
-Solipr is a Peer to Peer Version Control System built entirely in Rust.
+## Status
 
-## Links
-- [Official Website](https://solipr.net)
+Solipr has been discontinued.
+
+After further exploration and development, it's clear that [Jujutsu](https://github.com/jj-vcs/jj) already fulfills the core goals Solipr aimed to achieve, and does so exceptionally well. Rather than reinventing the wheel, future work will focus on building tools and extensions on top of Jujutsu instead of creating a new system from scratch.
+
+Thank you for your interest and support!
 
 ## Our team
 
